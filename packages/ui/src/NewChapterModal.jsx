@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { generateChapterSummary, createNewChapter } from "./api/conversations";
+import { generateChapterSummary, createNewChapter } from "@roleplayer/core/api/conversations.js";
 
 const MAX_SUMMARY_LENGTH = 6000;
 

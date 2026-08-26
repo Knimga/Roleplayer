@@ -92,6 +92,13 @@
       "when": 1786453601489,
       "tag": "0012_odd_jack_power",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787768693432,
+      "tag": "0013_thick_maginty",
+      "breakpoints": true
     }
   ]
 }

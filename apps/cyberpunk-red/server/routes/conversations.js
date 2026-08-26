@@ -72,7 +72,7 @@ async function assertUnderConversationCap(res) {
 // everyone, including the admin. Shared by assertActiveChapter (route-level,
 // writes the 403 itself) and findModifiableMessage (returns a status/error
 // pair like its other checks) so the same rule backs both. Always false for
-// a conversation with no storyId (regular conversations, and Main Stories
+// a conversation with no storyId (regular conversations, and Stories
 // predating this feature until backfilled).
 //
 // Explicitly excludes conversationId itself rather than relying on the
@@ -109,10 +109,10 @@ async function assertActiveChapter(conversationId, conversation, res) {
 }
 
 // A conversation-scoped message is always attributed to the poster's
-// character name in a Main Story conversation, or their username otherwise
+// character name in a Story conversation, or their username otherwise
 // — shared by the plain send route and the dice-roll route below.
 function resolveSender(conversation, username) {
-  return conversation?.isMainStory ? (conversation.characterNames?.[username] ?? username) : username;
+  return conversation?.storyId ? (conversation.characterNames?.[username] ?? username) : username;
 }
 
 async function insertUserMessage(conversationId, sender, authorUsername, content, conversationName) {
@@ -185,7 +185,6 @@ router.get("/", async (req, res) => {
     .select({
       id: conversations.id,
       name: conversations.name,
-      isMainStory: conversations.isMainStory,
       storyId: conversations.storyId,
       storyName: stories.name,
       characterNames: conversations.characterNames,
@@ -230,7 +229,7 @@ router.post("/", async (req, res) => {
   res.status(201).json({ id: conversation.id, name: conversation.name });
 });
 
-router.post("/main-story", async (req, res) => {
+router.post("/story", async (req, res) => {
   const characterNames = req.body?.characterNames ?? {};
   const characterDetails = req.body?.characterDetails ?? {};
 
@@ -268,7 +267,6 @@ router.post("/main-story", async (req, res) => {
     .insert(conversations)
     .values({
       name: "Chapter 1",
-      isMainStory: true,
       storyId: story.id,
       characterNames: capitalized,
       characterDetails: details,
@@ -279,7 +277,7 @@ router.post("/main-story", async (req, res) => {
     })
     .returning();
 
-  res.status(201).json({ id: conversation.id, name: conversation.name, isMainStory: true, storyId: story.id, storyName: story.name });
+  res.status(201).json({ id: conversation.id, name: conversation.name, storyId: story.id, storyName: story.name });
 });
 
 router.patch("/:id", async (req, res) => {
@@ -365,7 +363,7 @@ router.get("/:id/events", (req, res) => {
 
 router.post("/:id/typing", async (req, res) => {
   const [conversation] = await db
-    .select({ isMainStory: conversations.isMainStory, characterNames: conversations.characterNames })
+    .select({ storyId: conversations.storyId, characterNames: conversations.characterNames })
     .from(conversations)
     .where(eq(conversations.id, req.params.id));
 
@@ -390,7 +388,6 @@ router.post("/:id/messages", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterNames: conversations.characterNames,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -404,7 +401,7 @@ router.post("/:id/messages", async (req, res) => {
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
   const sender = resolveSender(conversation, req.user.username);
-  const conversationName = conversation.isMainStory ? (conversation.storyName ?? conversation.name) : conversation.name;
+  const conversationName = conversation.storyId ? (conversation.storyName ?? conversation.name) : conversation.name;
   await insertUserMessage(req.params.id, sender, req.user.username, content.trim(), conversationName);
 
   res.status(202).json({ status: "sent" });
@@ -415,7 +412,6 @@ router.post("/:id/avatar", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       avatarImages: conversations.avatarImages,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -426,8 +422,8 @@ router.post("/:id/avatar", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "Avatars are only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Avatars are only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
@@ -453,7 +449,6 @@ router.patch("/:id/description", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterDescriptions: conversations.characterDescriptions,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -464,8 +459,8 @@ router.patch("/:id/description", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "Character descriptions are only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Character descriptions are only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
   if (typeof description !== "string") {
@@ -489,7 +484,6 @@ router.patch("/:id/gear", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterGear: conversations.characterGear,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -500,8 +494,8 @@ router.patch("/:id/gear", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "Weapons & Gear is only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Weapons & Gear is only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
   if (typeof gear !== "string") {
@@ -528,7 +522,6 @@ router.patch("/:id/hp", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterHp: conversations.characterHp,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -539,8 +532,8 @@ router.patch("/:id/hp", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "HP is only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "HP is only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
@@ -573,7 +566,6 @@ router.patch("/:id/sp", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterSp: conversations.characterSp,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -584,8 +576,8 @@ router.patch("/:id/sp", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "SP is only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "SP is only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
@@ -617,7 +609,6 @@ router.patch("/:id/ready", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterReady: conversations.characterReady,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -628,8 +619,8 @@ router.patch("/:id/ready", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory) {
-    return res.status(400).json({ error: "Ready status is only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Ready status is only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
@@ -648,7 +639,6 @@ router.post("/:id/summarize", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterNames: conversations.characterNames,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -659,8 +649,8 @@ router.post("/:id/summarize", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory || !conversation.storyId) {
-    return res.status(400).json({ error: "Chapters are only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Chapters are only supported for Story conversations" });
   }
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
@@ -695,8 +685,8 @@ router.post("/:id/new-chapter", async (req, res) => {
   if (!conversation) {
     return res.status(404).json({ error: "Conversation not found" });
   }
-  if (!conversation.isMainStory || !conversation.storyId) {
-    return res.status(400).json({ error: "Chapters are only supported for Main Story conversations" });
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Chapters are only supported for Story conversations" });
   }
   const [story] = await db.select({ name: stories.name }).from(stories).where(eq(stories.id, conversation.storyId));
   if (!(await assertActiveChapter(conversationId, conversation, res))) return;
@@ -717,7 +707,6 @@ router.post("/:id/new-chapter", async (req, res) => {
       .insert(conversations)
       .values({
         name: `Chapter ${chapterCount + 1}`,
-        isMainStory: true,
         storyId: conversation.storyId,
         characterNames: conversation.characterNames,
         characterDetails: conversation.characterDetails,
@@ -822,7 +811,6 @@ router.post("/:id/roll", async (req, res) => {
 
   const [conversation] = await db
     .select({
-      isMainStory: conversations.isMainStory,
       characterNames: conversations.characterNames,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
@@ -836,7 +824,7 @@ router.post("/:id/roll", async (req, res) => {
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
 
   const sender = resolveSender(conversation, req.user.username);
-  const conversationName = conversation.isMainStory ? (conversation.storyName ?? conversation.name) : conversation.name;
+  const conversationName = conversation.storyId ? (conversation.storyName ?? conversation.name) : conversation.name;
   await insertUserMessage(req.params.id, sender, req.user.username, content, conversationName);
 
   res.status(202).json({ status: "sent" });
@@ -906,7 +894,6 @@ router.post("/:id/respond", async (req, res) => {
       characterHp: conversations.characterHp,
       storyId: conversations.storyId,
       createdAt: conversations.createdAt,
-      isMainStory: conversations.isMainStory,
       name: conversations.name,
       storyName: stories.name,
     })
@@ -973,7 +960,7 @@ router.post("/:id/respond", async (req, res) => {
       .where(eq(conversations.id, conversationId));
 
     publish(conversationId, { type: "created", message: saved });
-    const conversationName = conversation?.isMainStory ? (conversation.storyName ?? conversation.name) : conversation?.name;
+    const conversationName = conversation?.storyId ? (conversation.storyName ?? conversation.name) : conversation?.name;
     notifyOtherPlayer({ actorUsername: req.user.username, message: formatDmReply(conversationName, replyText) });
   } catch (err) {
     console.error("Failed to generate DM reply:", err);

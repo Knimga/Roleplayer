@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { uploadAvatar } from "./api/conversations";
+import { uploadAvatar } from "@roleplayer/core/api/conversations.js";
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import DiceRoller from "./DiceRoller";
-import AvatarUpload from "./AvatarUpload";
+import AvatarUpload from "@roleplayer/ui/AvatarUpload.jsx";
 import HpTracker from "./HpTracker";
 import SpTracker from "./SpTracker";
 import CharacterTextField from "@roleplayer/ui/CharacterTextField.jsx";

@@ -3,7 +3,7 @@ import { renameConversation, deleteConversation } from "./api/conversations";
 import { renameStory } from "@roleplayer/core/api/stories.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import NewStoryModal from "./NewStoryModal";
-import NewChapterModal from "./NewChapterModal";
+import NewChapterModal from "@roleplayer/ui/NewChapterModal.jsx";
 import SettingsModal from "@roleplayer/ui/SettingsModal.jsx";
 
 export default function LeftPanel({

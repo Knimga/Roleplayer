@@ -15,8 +15,7 @@ export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   isMain: boolean("is_main").notNull().default(false),
-  isMainStory: boolean("is_main_story").notNull().default(false),
-  storyId: uuid("story_id").references(() => stories.id), // set on every chapter; null otherwise
+  storyId: uuid("story_id").references(() => stories.id), // set on every chapter, null otherwise — the sole source of truth for "is this a Story conversation" (a dedicated isMainStory flag was dropped as redundant: the two were never set independently)
   characterNames: jsonb("character_names"), // { "<username>": "<character name>" }
   characterDetails: jsonb("character_details"), // { "<username>": { "role": "<Role>", "level": <1-20> } }
   avatarImages: jsonb("avatar_images"), // { "<username>": "<data URL>" }, mutable, unlike the fields above

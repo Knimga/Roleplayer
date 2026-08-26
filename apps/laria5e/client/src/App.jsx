@@ -4,7 +4,7 @@ import { listConversations } from "./api/conversations";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import LeftPanel from "./LeftPanel";
-import ChatView from "./ChatView";
+import ChatView from "@roleplayer/ui/ChatView.jsx";
 import RightPanel from "./RightPanel";
 import "./App.css";
 

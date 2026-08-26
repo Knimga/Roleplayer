@@ -3,7 +3,7 @@ import { renameConversation, deleteConversation } from "./api/conversations";
 import { renameStory } from "@roleplayer/core/api/stories.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import NewStoryModal from "./NewStoryModal";
-import NewChapterModal from "./NewChapterModal";
+import NewChapterModal from "@roleplayer/ui/NewChapterModal.jsx";
 import SettingsModal from "@roleplayer/ui/SettingsModal.jsx";
 
 export default function Sidebar({
@@ -84,8 +84,11 @@ export default function Sidebar({
                   />
                 ) : (
                   <button type="button" className="conversation-name" onClick={() => onSelect(c.id)}>
-                    {/* c.isMainStory is the API's field name (backend still says "Main Story") — UI-facing term is "Story" */}
-                    {c.isMainStory && <span className="story-icon">📖</span>}
+                    {/* Dead in practice: this branch only renders standalone (non-story)
+                        conversations, so c.storyId is always null here. Left as the
+                        correct check rather than removed, in case a legacy standalone
+                        conversation is ever attached to a story some other way. */}
+                    {c.storyId && <span className="story-icon">📖</span>}
                     {c.name}
                   </button>
                 )}

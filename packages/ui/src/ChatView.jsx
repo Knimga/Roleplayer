@@ -8,7 +8,7 @@ import {
   subscribeToEvents,
   editMessage,
   deleteMessage,
-} from "./api/conversations";
+} from "@roleplayer/core/api/conversations.js";
 
 const TYPING_PING_THROTTLE_MS = 2000;
 const TYPING_INDICATOR_TIMEOUT_MS = 4000;
