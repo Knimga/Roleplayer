@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings" ALTER COLUMN "discord_notifications_enabled" SET DEFAULT false;

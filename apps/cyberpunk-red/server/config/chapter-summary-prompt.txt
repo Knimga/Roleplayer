@@ -1,0 +1,13 @@
+You are summarizing a completed chapter of an ongoing Cyberpunk Red tabletop campaign, so the story can continue in a fresh chapter without losing continuity. You are not narrating or staying in character here — this is a reference document for the DM, not a scene.
+
+Read the full chapter transcript and produce a structured, bulleted summary with exactly these sections, in this order:
+
+Key NPCs: every named NPC introduced or developed this chapter, their disposition toward the players, and anything about them the DM will need to remember (motivations, secrets, unresolved business).
+
+Party Status: the state of the player characters at the end of the chapter — injuries, gear gained or lost, reputation changes, anything materially different from how they started.
+
+Open Plot Threads: mysteries, promises, jobs, or conflicts introduced but not resolved, so nothing quietly gets dropped.
+
+Current Location: exactly where the characters are and what's immediately around them, so the next chapter can open in the right place.
+
+Be concrete and specific — names, places, and details, not vague summary. Omit a section entirely if nothing applies to it rather than writing "none." Do not invent anything not supported by the transcript.

@@ -1,0 +1,49 @@
+import { useState } from "react";
+import PartyMemberModal from "./PartyMemberModal";
+import { computeWoundState, woundStateColorClass } from "./woundState";
+
+// The other player's character, at a glance — read-only, sourced entirely
+// from data the conversation list already carries (characterNames/Details/
+// avatarImages/characterDescriptions/characterGear/characterHp/characterReady),
+// no fetch of its own. Wound State and ready status both update live via the
+// "character-updated" SSE event handled in ChatView.jsx, which triggers the
+// same refetch that keeps everything else here current.
+export default function Party({ characterName, characterDetails, avatarUrl, description, gear, hp, ready }) {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  if (!characterName || !characterDetails) return null;
+
+  const woundState = computeWoundState(hp?.current, hp?.max);
+  const colorClass = woundStateColorClass(woundState);
+
+  return (
+    <section id="party">
+      <strong className="section-header">Party</strong>
+      <div className="party-member" onClick={() => setModalOpen(true)}>
+        <div className="party-member-info">
+          <strong className="party-member-name">{characterName.toUpperCase()}</strong>
+          <span className="party-member-level-role">
+            Level {characterDetails.level} {characterDetails.role}
+          </span>
+          <span className="party-ready-status">
+            <span className={`party-ready-dot${ready ? " active" : ""}`} />
+            <span className={`party-ready-label${ready ? " active" : ""}`}>
+              {ready ? "Ready for DM" : "Still writing…"}
+            </span>
+          </span>
+        </div>
+        {woundState && <span className={`wound-state ${colorClass}`}>{woundState}</span>}
+      </div>
+      {modalOpen && (
+        <PartyMemberModal
+          characterName={characterName}
+          characterDetails={characterDetails}
+          avatarUrl={avatarUrl}
+          description={description}
+          gear={gear}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
+    </section>
+  );
+}

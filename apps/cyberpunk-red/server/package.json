@@ -1,0 +1,28 @@
+{
+  "name": "cyberpunk-red-rp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node db/migrate.mjs",
+    "db:seed": "node db/seed.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^4.21.2",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10"
+  }
+}

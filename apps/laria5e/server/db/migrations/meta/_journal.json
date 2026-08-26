@@ -1,0 +1,132 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783441632166,
+      "tag": "0000_daffy_gideon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783487641927,
+      "tag": "0001_rapid_shriek",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783489863901,
+      "tag": "0002_fixed_blue_blade",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783856248048,
+      "tag": "0003_normal_moonstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783858799631,
+      "tag": "0004_tearful_dreadnoughts",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784216604703,
+      "tag": "0005_fixed_millenium_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784471291620,
+      "tag": "0006_gifted_mole_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784483436356,
+      "tag": "0007_motionless_pretty_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784610728773,
+      "tag": "0008_youthful_hellcat",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784872498670,
+      "tag": "0009_abnormal_screwball",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784884694505,
+      "tag": "0010_polite_preak",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785390448325,
+      "tag": "0011_warm_firedrake",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786453601489,
+      "tag": "0012_odd_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1787564701000,
+      "tag": "0013_rename_is_main_story",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787564702000,
+      "tag": "0014_drop_is_story",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1787564703000,
+      "tag": "0015_drop_character_sp",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1787564704000,
+      "tag": "0016_discord_notifications_default_off",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787564705000,
+      "tag": "0017_add_character_ac",
+      "breakpoints": true
+    }
+  ]
+}

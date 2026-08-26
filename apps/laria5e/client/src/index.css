@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+body {
+  font-family: 'Spectral', Georgia, serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #4a3627;
+  border-radius: 4px;
+}
+
+/* Laria is a dark-only surface by design — no light-mode branch. */
+:root {
+  --text: #a08c74;
+  --text-h: #efe2cf;
+  --text-body: #bda992;
+  --text-secondary: #d8c8b2;
+  --text-dim: #8a7862;
+  --text-faint: #6b5a49;
+  --text-disabled: #7d6c58;
+  --bg: #1c1310;
+  --bg-raised: #241811;
+  --border: #38281d;
+  --border-strong: #4a3627;
+  --code-bg: #14100c;
+  --accent: #c9762f;
+  --accent-bg: rgba(201, 118, 47, 0.1);
+  --accent-border: rgba(201, 118, 47, 0.45);
+  --accent-soft: #e0b78a;
+  --accent-2: #4ec6b0;
+  --accent-2-bg: rgba(46, 166, 153, 0.1);
+  --accent-2-hi: #7fe3cd;
+  --gold: #d9a83c;
+  --gold-text: #e8cf8e;
+  --danger: #c1502e;
+  --danger-soft: #e8a08e;
+  --accent-red: #d08575;
+  --accent-gold: #e0b652;
+  --accent-ember-required: rgba(201, 118, 47, 0.4);
+  --shadow:
+    rgba(0, 0, 0, 0.5) 0 10px 25px -5px, rgba(0, 0, 0, 0.3) 0 4px 8px -2px;
+
+  --heading: 'Cinzel', serif;
+  --body-font: 'Spectral', Georgia, serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 16px/145% var(--body-font);
+  letter-spacing: 0.18px;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 1200px 780px at 8% -14%,
+      rgba(226, 124, 44, 0.21) 0%, rgba(226, 124, 44, 0.12) 26%, rgba(226, 124, 44, 0.055) 48%,
+      rgba(226, 124, 44, 0.017) 70%, rgba(226, 124, 44, 0) 88%),
+    radial-gradient(ellipse 1100px 900px at 104% 2%,
+      rgba(46, 166, 153, 0.16) 0%, rgba(46, 166, 153, 0.09) 26%, rgba(46, 166, 153, 0.04) 48%,
+      rgba(46, 166, 153, 0.012) 70%, rgba(46, 166, 153, 0) 88%),
+    radial-gradient(ellipse 1000px 700px at 18% 122%,
+      rgba(129, 74, 120, 0.13) 0%, rgba(129, 74, 120, 0.07) 28%, rgba(129, 74, 120, 0.03) 52%,
+      rgba(129, 74, 120, 0.01) 74%, rgba(129, 74, 120, 0) 90%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+#root {
+  text-align: center;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+h1,
+h2 {
+  font-family: var(--heading);
+  font-weight: 500;
+  color: var(--text-h);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+h1 {
+  font-size: 56px;
+  letter-spacing: -1.68px;
+  margin: 32px 0;
+  @media (max-width: 1024px) {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+}
+h2 {
+  font-size: 24px;
+  line-height: 118%;
+  letter-spacing: -0.24px;
+  margin: 0 0 8px;
+  @media (max-width: 1024px) {
+    font-size: 20px;
+  }
+}
+p {
+  margin: 0;
+}
+
+code,
+.counter {
+  font-family: var(--mono);
+  display: inline-flex;
+  border-radius: 4px;
+  color: var(--text-h);
+}
+
+code {
+  font-size: 15px;
+  line-height: 135%;
+  padding: 4px 8px;
+  background: var(--code-bg);
+}
