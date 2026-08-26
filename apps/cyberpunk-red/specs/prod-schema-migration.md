@@ -166,3 +166,33 @@ backup first" workflow, with the same explicit-sign-off-before-touching-prod
 rule. Can reasonably be bundled into the same maintenance window as the
 schema-segregation migration above rather than done separately, since both
 are quick, reviewed, non-destructive changes to the same database.
+
+## Also pending: discord_notifications_enabled default flips to off (migration 0014)
+
+A third change, from making Discord notifications shared code
+(`packages/server-core/src/discordNotify.js`) and requiring the feature
+default off on first deploy: migration `0014_loud_kid_colt.sql` changes
+`app_settings.discord_notifications_enabled`'s column default from `true`
+to `false`. Already run and verified against local dev.
+
+**This one needs a decision, not just a run**, because `ALTER COLUMN ...
+SET DEFAULT` only changes what a *future* `INSERT` gets when it doesn't
+specify a value — it does not touch any row that already exists. Cyberpunk
+Red's prod database almost certainly already has an `app_settings` row
+(both players have real webhook URLs configured, and the feature has
+presumably been in active use), so running just this migration against prod
+would change nothing observable there — the existing row keeps whatever
+value it already has, `true` by the old default unless someone explicitly
+turned it off already.
+
+Before running this against prod, check the live row's current value first
+(`SELECT discord_notifications_enabled FROM app_settings;`) and decide:
+- Leave the existing prod row alone (migration only affects hypothetical
+  future fresh installs) — the simplest option, and the right one if
+  Discord pings are wanted to keep working exactly as they do today.
+- Or explicitly `UPDATE app_settings SET discord_notifications_enabled =
+  false;` if the intent is for the live app to actually go quiet by
+  default too, not just future deployments — this is a real behavior
+  change to the live app/active campaign, so it needs the same sign-off as
+  everything else in this doc, not just being bundled in because it's
+  convenient.

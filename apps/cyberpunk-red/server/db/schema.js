@@ -33,7 +33,7 @@ export const conversations = pgTable("conversations", {
 // second real setting is needed, not preemptively.
 export const appSettings = pgTable("app_settings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  discordNotificationsEnabled: boolean("discord_notifications_enabled").notNull().default(true),
+  discordNotificationsEnabled: boolean("discord_notifications_enabled").notNull().default(false),
 });
 
 export const messages = pgTable("messages", {

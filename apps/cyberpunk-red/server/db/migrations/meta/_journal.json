@@ -99,6 +99,13 @@
       "when": 1787768693432,
       "tag": "0013_thick_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787772729852,
+      "tag": "0014_loud_kid_colt",
+      "breakpoints": true
     }
   ]
 }
