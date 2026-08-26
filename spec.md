@@ -69,6 +69,7 @@ Shared packages hold logic only — no game-specific data, theming values, or pe
 - Each Render service (per app, per process — client/server/mcp) is configured with its own build and start command that targets only that app's package, e.g. `npm run build --workspace=apps/cyberpunk-red/client` / `npm run start --workspace=apps/cyberpunk-red/client`.
 - Each Render service has its own independent environment variable configuration, set in the Render dashboard per service.
 - Not building the Render config itself yet — just structuring the repo so this is straightforward when we get there.
+- The Cyberpunk app is live on Render now, with a production database (Postgres on Render) and an active roleplay campaign occurring. The Laria 5e is NOT deployed. Eventual prod deployment of this monorepo app will need to preserve the prod Cyberpunk data so it's not lost.
 
 ## Working Style
 

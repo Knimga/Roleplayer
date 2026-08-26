@@ -19,7 +19,10 @@ const pool = new pg.Pool({
 const db = drizzle(pool);
 
 try {
-  await migrate(db, { migrationsFolder });
+  // Tracking table lives inside this app's own schema (not the drizzle-orm
+  // default "drizzle" schema) so the laria5e-scoped role never needs access
+  // outside its own schema, and the two apps share no DB object at all.
+  await migrate(db, { migrationsFolder, migrationsSchema: "laria5e" });
   console.log("Migrations applied successfully.");
 } catch (err) {
   console.error("Migration failed:", err);
