@@ -1,4 +1,4 @@
-import { findUserByUsername } from "../config/users.js";
+import { findUserByUsername } from "./users.js";
 
 const SESSION_COOKIE = "session";
 

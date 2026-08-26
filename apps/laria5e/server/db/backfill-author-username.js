@@ -2,7 +2,7 @@ import "dotenv/config";
 import { eq, isNull, and } from "drizzle-orm";
 import { db } from "../lib/db.js";
 import { conversations, messages } from "./schema.js";
-import { users } from "../config/users.js";
+import { users } from "@roleplayer/server-core/users.js";
 
 // One-off: `author_username` starts NULL on every pre-existing `role:
 // "user"` row. Non-Story conversations already have the real username

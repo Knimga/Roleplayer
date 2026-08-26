@@ -2,7 +2,7 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
-import { users } from "../config/users.js";
+import { users } from "@roleplayer/server-core/users.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;

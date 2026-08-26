@@ -1,4 +1,4 @@
-import { users } from "../config/users.js";
+import { users } from "@roleplayer/server-core/users.js";
 import { getSettings } from "./settings.js";
 
 const APP_URL = "https://cyberpunk-red-rp.onrender.com/";

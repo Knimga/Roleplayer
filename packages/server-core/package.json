@@ -3,5 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "index.js"
+  "exports": {
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^4.21.2"
+  }
 }

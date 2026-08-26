@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { findUserByCode, findUserByUsername, users } from "../config/users.js";
-import { SESSION_COOKIE, requireAuth } from "../middleware/requireAuth.js";
+import { findUserByCode, findUserByUsername, users } from "./users.js";
+import { SESSION_COOKIE, requireAuth } from "./requireAuth.js";
 
 const router = Router();
 
@@ -33,7 +33,7 @@ router.get("/me", (req, res) => {
   res.json({ username, isAdmin: !!user?.isAdmin });
 });
 
-// Feeds the Main Story character-name modal, which needs to label a field
+// Feeds the New Story character-name modal, which needs to label a field
 // for each of the two players — the client otherwise only knows its own
 // logged-in username via /me.
 router.get("/users", requireAuth, (req, res) => {

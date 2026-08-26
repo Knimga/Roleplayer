@@ -1,4 +1,4 @@
-import { users } from "../config/users.js";
+import { users } from "@roleplayer/server-core/users.js";
 import { getSettings } from "./settings.js";
 
 // No fallback needed beyond local dev — this feature already no-ops

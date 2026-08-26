@@ -1,5 +1,4 @@
-import "dotenv/config";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { createDb } from "@roleplayer/server-core/db.js";
 import * as schema from "../db/schema.js";
 
-export const db = drizzle(process.env.DATABASE_URL, { schema });
+export const db = createDb(schema);
