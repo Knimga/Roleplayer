@@ -8,33 +8,16 @@ import { rollD20Check, rollDamage, formatModifier } from "./dice.js";
 const DOCS_DIR = fileURLToPath(new URL("./docs", import.meta.url));
 const VALID_SIDES = [4, 6, 8, 10, 12, 20];
 
-// Recursively collects every .md file under `dir`, returning paths relative
-// to `baseDir` with forward slashes regardless of OS — so a doc under a
-// topic subfolder (e.g. mcp/docs/rules/combat.md) comes back as
-// "rules/combat.md", consistently, whether this runs on Windows or Linux.
-function listDocFiles(dir, baseDir = dir) {
-  const files = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listDocFiles(fullPath, baseDir));
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      files.push(path.relative(baseDir, fullPath).split(path.sep).join("/"));
-    }
-  }
-  return files;
-}
-
 export function createGameMcpServer() {
   const server = new McpServer({ name: "laria-5e-tools", version: "1.0.0" });
 
   server.registerTool(
     "list_docs",
     {
-      description: "List the available docs/rules topic files, organized into topic subfolders.",
+      description: "List the available docs/rules topic files.",
     },
     async () => {
-      const files = listDocFiles(DOCS_DIR);
+      const files = readdirSync(DOCS_DIR).filter((f) => f.endsWith(".md"));
       return { content: [{ type: "text", text: JSON.stringify(files) }] };
     },
   );
@@ -42,29 +25,24 @@ export function createGameMcpServer() {
   server.registerTool(
     "read_doc",
     {
-      description: "Read the full contents of one docs/rules topic file by its relative path.",
+      description: "Read the full contents of one docs/rules topic file by name.",
       inputSchema: {
-        filename: z.string().describe('Relative path from list_docs, e.g. "rules/combat.md"'),
+        filename: z.string().describe('Filename from list_docs, e.g. "index.md"'),
       },
     },
     async ({ filename }) => {
       // `filename` is ultimately model-generated input, not a hardcoded
-      // value — resolve it defensively so it can't escape mcp/docs/, even
-      // with a subfolder path. path.resolve() collapses any ".." segments
-      // before the containment check runs, so "../../etc/passwd" or an
-      // absolute path both correctly fail it; a legitimate nested path like
-      // "rules/combat.md" resolves inside DOCS_DIR and passes.
-      const normalized = String(filename).replace(/\\/g, "/").replace(/^\/+/, "");
-      const filePath = path.resolve(DOCS_DIR, normalized);
-      const withinDocs = filePath === DOCS_DIR || filePath.startsWith(DOCS_DIR + path.sep);
-      if (!withinDocs || !filePath.endsWith(".md")) {
+      // value — resolve it defensively so it can't escape mcp/docs/.
+      const safeName = path.basename(filename);
+      const filePath = path.join(DOCS_DIR, safeName);
+      if (!filePath.startsWith(DOCS_DIR) || !safeName.endsWith(".md")) {
         return { content: [{ type: "text", text: "Invalid filename" }], isError: true };
       }
       try {
         const text = readFileSync(filePath, "utf-8");
         return { content: [{ type: "text", text }] };
       } catch {
-        return { content: [{ type: "text", text: `File not found: ${filename}` }], isError: true };
+        return { content: [{ type: "text", text: `File not found: ${safeName}` }], isError: true };
       }
     },
   );

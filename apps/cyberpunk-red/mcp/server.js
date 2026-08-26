@@ -5,7 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 import { rollSkillCheck, rollGeneric, formatModifier, formatDiceBreakdown } from "./dice.js";
 
-const LORE_DIR = fileURLToPath(new URL("./lore", import.meta.url));
+const DOCS_DIR = fileURLToPath(new URL("./docs", import.meta.url));
 const VALID_SIDES = [6, 10];
 
 export function createGameMcpServer() {
@@ -17,7 +17,7 @@ export function createGameMcpServer() {
       description: "List the available Cyberpunk Red lore/rules topic files.",
     },
     async () => {
-      const files = readdirSync(LORE_DIR).filter((f) => f.endsWith(".txt"));
+      const files = readdirSync(DOCS_DIR).filter((f) => f.endsWith(".md"));
       return { content: [{ type: "text", text: JSON.stringify(files) }] };
     },
   );
@@ -27,15 +27,15 @@ export function createGameMcpServer() {
     {
       description: "Read the full contents of one lore/rules topic file by name.",
       inputSchema: {
-        filename: z.string().describe('Filename from list_lore_files, e.g. "world.txt"'),
+        filename: z.string().describe('Filename from list_lore_files, e.g. "combat.md"'),
       },
     },
     async ({ filename }) => {
       // `filename` is ultimately model-generated input, not a hardcoded
-      // value — resolve it defensively so it can't escape mcp/lore/.
+      // value — resolve it defensively so it can't escape mcp/docs/.
       const safeName = path.basename(filename);
-      const filePath = path.join(LORE_DIR, safeName);
-      if (!filePath.startsWith(LORE_DIR) || !safeName.endsWith(".txt")) {
+      const filePath = path.join(DOCS_DIR, safeName);
+      if (!filePath.startsWith(DOCS_DIR) || !safeName.endsWith(".md")) {
         return { content: [{ type: "text", text: "Invalid filename" }], isError: true };
       }
       try {
