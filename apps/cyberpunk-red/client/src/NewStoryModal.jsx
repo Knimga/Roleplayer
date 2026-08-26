@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listUsers } from "./api/auth";
+import { listUsers } from "@roleplayer/core/api/auth.js";
 import { createStory } from "./api/conversations";
 
 const ROLES = [

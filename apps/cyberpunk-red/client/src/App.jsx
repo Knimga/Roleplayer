@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { me } from "./api/auth";
+import { me } from "@roleplayer/core/api/auth.js";
 import { listConversations } from "./api/conversations";
-import { groupConversations } from "./groupConversations";
-import LoginScreen from "./LoginScreen";
+import { groupConversations } from "@roleplayer/core/groupConversations.js";
+import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import Sidebar from "./Sidebar";
 import ChatView from "./ChatView";
 import RightPanel from "./RightPanel";

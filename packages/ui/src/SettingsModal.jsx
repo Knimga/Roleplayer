@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSettings, updateSettings } from "./api/settings";
+import { getSettings, updateSettings } from "@roleplayer/core/api/settings.js";
 
 export default function SettingsModal({ onClose }) {
   const [settings, setSettings] = useState(null);

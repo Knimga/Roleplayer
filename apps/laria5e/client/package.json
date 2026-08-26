@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@roleplayer/core": "*",
+    "@roleplayer/ui": "*",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

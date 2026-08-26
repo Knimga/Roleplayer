@@ -3,7 +3,7 @@ import DiceRoller from "./DiceRoller";
 import AvatarUpload from "./AvatarUpload";
 import HpTracker from "./HpTracker";
 import AcTracker from "./AcTracker";
-import CharacterTextField from "./CharacterTextField";
+import CharacterTextField from "@roleplayer/ui/CharacterTextField.jsx";
 import Party from "./Party";
 import MapModal from "./MapModal";
 import { saveCharacterDescription, saveCharacterGear } from "./api/conversations";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { login } from "./api/auth";
+import { login } from "@roleplayer/core/api/auth.js";
 
 export default function LoginScreen({ onLogin }) {
   const [code, setCode] = useState("");

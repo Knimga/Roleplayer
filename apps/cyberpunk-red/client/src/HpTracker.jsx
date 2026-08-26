@@ -1,6 +1,6 @@
 import { saveCharacterHp } from "./api/conversations";
 import NumberBarTracker from "./NumberBarTracker";
-import { computeWoundState, woundStateColorClass } from "./woundState";
+import { computeWoundState, woundStateColorClass } from "@roleplayer/core/woundState.js";
 
 export default function HpTracker({ conversationId, hp, onSaved }) {
   const { current, max } = hp ?? { current: 0, max: 0 };

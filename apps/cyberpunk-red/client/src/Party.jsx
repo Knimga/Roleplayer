@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PartyMemberModal from "./PartyMemberModal";
-import { computeWoundState, woundStateColorClass } from "./woundState";
+import { computeWoundState, woundStateColorClass } from "@roleplayer/core/woundState.js";
 
 // The other player's character, at a glance — read-only, sourced entirely
 // from data the conversation list already carries (characterNames/Details/

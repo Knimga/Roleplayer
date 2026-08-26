@@ -12,7 +12,7 @@ import {
 
 const TYPING_PING_THROTTLE_MS = 2000;
 const TYPING_INDICATOR_TIMEOUT_MS = 4000;
-import AnimatedGMReply from "./AnimatedGMReply";
+import AnimatedGMReply from "@roleplayer/ui/AnimatedGMReply.jsx";
 
 // Renders **bold** and *italic* asterisk markup as <strong>/<em> instead of
 // showing the literal asterisks. Not full markdown — just what the DM's
