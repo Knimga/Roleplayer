@@ -148,3 +148,21 @@ var isn't enough on its own — either:
 - Whether a `drizzle` schema/`__drizzle_migrations` table actually exists in
   prod — depends on how migrations have been run there historically; also a
   pre-flight discovery step, not assumed.
+
+## Also pending: drop is_main_story (migration 0013)
+
+A second, unrelated schema change is now also waiting on prod, from
+backporting laria5e's main-story → story rename (see that commit): migration
+`0013_thick_maginty.sql` drops the `is_main_story` column from
+`conversations` — it's been fully redundant with `storyId` (set on every
+Story chapter, null otherwise) since standalone conversations stopped being
+creatable, and code no longer reads or writes it at all as of that commit.
+
+Same story as the schema migration above: non-destructive (`DROP COLUMN` on
+a column nothing reads anymore), already run and verified against local dev,
+but not yet run against the live Render database — needs the same "point
+`server/.env` at the External Database URL, run `npm run db:migrate`,
+backup first" workflow, with the same explicit-sign-off-before-touching-prod
+rule. Can reasonably be bundled into the same maintenance window as the
+schema-segregation migration above rather than done separately, since both
+are quick, reviewed, non-destructive changes to the same database.
