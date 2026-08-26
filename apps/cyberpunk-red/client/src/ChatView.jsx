@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   getMessages,
   sendMessage,
-  createConversation,
   requestReply,
   sendTypingPing,
   saveCharacterReady,
@@ -37,7 +36,6 @@ export default function ChatView({
   conversationId,
   myCharacterName,
   isActiveChapter = true,
-  onConversationCreated,
   onActivity,
   myReady,
 }) {
@@ -170,22 +168,11 @@ export default function ChatView({
 
   async function handleSend(e) {
     e.preventDefault();
+    if (!conversationId) return;
     const content = draft.trim();
     if (!content) return;
     setDraft("");
     setNotice(null);
-
-    if (!conversationId) {
-      try {
-        const { id } = await createConversation(content);
-        onConversationCreated(id);
-      } catch (err) {
-        setNotice(err.message);
-        setDraft(content);
-      }
-      return;
-    }
-
     await sendMessage(conversationId, content);
   }
 
@@ -317,7 +304,9 @@ export default function ChatView({
 
         {notice && <p role="alert">{notice}</p>}
 
-        {isActiveChapter ? (
+        {!conversationId ? (
+          <p className="chat-notice">Start a new Story to begin.</p>
+        ) : isActiveChapter ? (
           <>
             {/* Anchored to the message box rather than inserted into #messages
                 — as a list item it silently sat below the fold on any
@@ -338,7 +327,7 @@ export default function ChatView({
                 value={draft}
                 onChange={(e) => handleDraftChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={conversationId ? `Message as ${myCharacterName ?? username}` : "+ New Convo"}
+                placeholder={`Message as ${myCharacterName ?? username}`}
                 rows={1}
               />
               <button type="submit" disabled={!draft.trim()}>
@@ -346,24 +335,22 @@ export default function ChatView({
               </button>
             </form>
 
-            {conversationId && (
-              <div className="dm-actions-row">
-                <button type="button" onClick={handleAskDm} disabled={!dmCanRespond || awaitingReply}>
-                  {awaitingReply ? "Asking the DM..." : "Ask the DM"}
-                </button>
-                <button
-                  type="button"
-                  className={`ready-toggle${myReady ? " active" : ""}`}
-                  onClick={handleToggleReady}
-                >
-                  <span className={`ready-dot${myReady ? " active" : ""}`} />
-                  <span className="ready-label">{myReady ? "Ready for DM" : "Mark Ready"}</span>
-                </button>
-              </div>
-            )}
+            <div className="dm-actions-row">
+              <button type="button" onClick={handleAskDm} disabled={!dmCanRespond || awaitingReply}>
+                {awaitingReply ? "Asking the DM..." : "Ask the DM"}
+              </button>
+              <button
+                type="button"
+                className={`ready-toggle${myReady ? " active" : ""}`}
+                onClick={handleToggleReady}
+              >
+                <span className={`ready-dot${myReady ? " active" : ""}`} />
+                <span className="ready-label">{myReady ? "Ready for DM" : "Mark Ready"}</span>
+              </button>
+            </div>
           </>
         ) : (
-          <p id="chapter-locked-notice">This chapter is locked — view only.</p>
+          <p className="chat-notice">This chapter is locked — view only.</p>
         )}
       </div>
     </section>

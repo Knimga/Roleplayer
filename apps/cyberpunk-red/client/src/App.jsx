@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { me } from "./api/auth";
 import { listConversations } from "./api/conversations";
+import { groupConversations } from "./groupConversations";
 import LoginScreen from "./LoginScreen";
 import Sidebar from "./Sidebar";
 import ChatView from "./ChatView";
@@ -26,6 +27,21 @@ function App() {
   useEffect(() => {
     if (session) refreshConversations();
   }, [session, refreshConversations]);
+
+  // Only Stories can be created going forward, so "nothing selected" should
+  // be a transient loading state, not a real one a player lands on. Default
+  // to the active chapter of whichever story is closest to the top of the
+  // sidebar's own sort order (most recent activity) — same grouping Sidebar
+  // itself renders, so "top of the list" means the same thing in both
+  // places. Does nothing once something is selected, and nothing if there's
+  // no story yet (a fresh install with none created).
+  useEffect(() => {
+    if (selectedConversationId || conversations.length === 0) return;
+    const topStory = groupConversations(conversations).find((item) => item.type === "story");
+    if (!topStory) return;
+    const activeChapter = topStory.chapters[topStory.chapters.length - 1];
+    setSelectedConversationId(activeChapter.id);
+  }, [conversations, selectedConversationId]);
 
   if (checkingSession) {
     return null;
@@ -68,7 +84,6 @@ function App() {
         conversations={conversations}
         selectedConversationId={selectedConversationId}
         onSelect={setSelectedConversationId}
-        onNewConvo={() => setSelectedConversationId(null)}
         onConversationCreated={handleConversationCreated}
         isAdmin={session.isAdmin}
         onRenamed={refreshConversations}
@@ -80,7 +95,6 @@ function App() {
         conversationId={selectedConversationId}
         myCharacterName={selectedConversation?.characterNames?.[session.username]}
         isActiveChapter={isActiveChapter}
-        onConversationCreated={handleConversationCreated}
         onActivity={refreshConversations}
         myReady={selectedConversation?.characterReady?.[session.username]}
       />

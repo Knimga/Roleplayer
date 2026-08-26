@@ -88,7 +88,6 @@
   filter: drop-shadow(0 0 10px rgba(255, 43, 77, 0.35));
 }
 
-#new-convo,
 #new-story,
 #settings-row {
   display: block;
@@ -108,7 +107,6 @@
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
 
-#new-convo:hover,
 #new-story:hover,
 #settings-row:hover {
   background: var(--accent-bg);
@@ -366,7 +364,7 @@
   font-style: italic;
 }
 
-#chapter-locked-notice {
+.chat-notice {
   text-align: center;
   font-size: 13px;
   font-style: italic;
