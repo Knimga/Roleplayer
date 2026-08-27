@@ -3,7 +3,8 @@ import { me } from "@roleplayer/core/api/auth.js";
 import { listConversations } from "./api/conversations";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
-import LeftPanel from "./LeftPanel";
+import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
+import NewStoryModal from "./NewStoryModal";
 import ChatView from "@roleplayer/ui/ChatView.jsx";
 import RightPanel from "./RightPanel";
 import "./App.css";
@@ -88,6 +89,13 @@ function App() {
         isAdmin={session.isAdmin}
         onRenamed={refreshConversations}
         onDeleted={handleConversationDeleted}
+        header={
+          <div className="wordmark">
+            <div className="wordmark-title">LARIA</div>
+            <div className="wordmark-subtitle">RP</div>
+          </div>
+        }
+        NewStoryModal={NewStoryModal}
       />
       <ChatView
         username={session.username}

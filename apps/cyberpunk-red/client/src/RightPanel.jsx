@@ -8,7 +8,7 @@ import Party from "./Party";
 import MapModal from "./MapModal";
 import { saveCharacterDescription, saveCharacterGear } from "./api/conversations";
 
-// The right vertical bar — mirrors Sidebar.jsx on the left. Owns the panel's
+// The right vertical bar — mirrors LeftPanel.jsx on the left. Owns the panel's
 // own layout (width/border/scroll); each thing inside (DiceRoller today,
 // more later) is just a section stacked in this column, not a panel itself.
 export default function RightPanel({

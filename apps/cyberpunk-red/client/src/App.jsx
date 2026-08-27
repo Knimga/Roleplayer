@@ -3,7 +3,8 @@ import { me } from "@roleplayer/core/api/auth.js";
 import { listConversations } from "./api/conversations";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
-import Sidebar from "./Sidebar";
+import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
+import NewStoryModal from "./NewStoryModal";
 import ChatView from "@roleplayer/ui/ChatView.jsx";
 import RightPanel from "./RightPanel";
 import "./App.css";
@@ -31,7 +32,7 @@ function App() {
   // Only Stories can be created going forward, so "nothing selected" should
   // be a transient loading state, not a real one a player lands on. Default
   // to the active chapter of whichever story is closest to the top of the
-  // sidebar's own sort order (most recent activity) — same grouping Sidebar
+  // sidebar's own sort order (most recent activity) — same grouping LeftPanel
   // itself renders, so "top of the list" means the same thing in both
   // places. Does nothing once something is selected, and nothing if there's
   // no story yet (a fresh install with none created).
@@ -80,7 +81,7 @@ function App() {
 
   return (
     <div id="layout">
-      <Sidebar
+      <LeftPanel
         conversations={conversations}
         selectedConversationId={selectedConversationId}
         onSelect={setSelectedConversationId}
@@ -88,6 +89,8 @@ function App() {
         isAdmin={session.isAdmin}
         onRenamed={refreshConversations}
         onDeleted={handleConversationDeleted}
+        header={<img src="/cyberpunk-red-logo.png" alt="Cyberpunk Red" id="sidebar-logo" />}
+        NewStoryModal={NewStoryModal}
       />
       <ChatView
         username={session.username}

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { renameConversation, deleteConversation } from "./api/conversations";
+import { renameConversation, deleteConversation } from "@roleplayer/core/api/conversations.js";
 import { renameStory } from "@roleplayer/core/api/stories.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
-import NewStoryModal from "./NewStoryModal";
-import NewChapterModal from "@roleplayer/ui/NewChapterModal.jsx";
-import SettingsModal from "@roleplayer/ui/SettingsModal.jsx";
+import NewChapterModal from "./NewChapterModal.jsx";
+import SettingsModal from "./SettingsModal.jsx";
 
-export default function Sidebar({
+// header and NewStoryModal are per-app: header is each app's own logo/wordmark
+// branding, NewStoryModal is a game-specific character-creation form (Role/
+// Level vs Class/Level etc) - both are supplied by the app, not this component.
+export default function LeftPanel({
   conversations,
   selectedConversationId,
   onSelect,
@@ -14,6 +16,8 @@ export default function Sidebar({
   isAdmin,
   onRenamed,
   onDeleted,
+  header,
+  NewStoryModal,
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
@@ -60,7 +64,7 @@ export default function Sidebar({
 
   return (
     <nav id="sidebar">
-      <img src="/cyberpunk-red-logo.png" alt="Cyberpunk Red" id="sidebar-logo" />
+      {header}
       <button type="button" id="new-story" onClick={() => setShowStoryModal(true)}>
         + New Story
       </button>

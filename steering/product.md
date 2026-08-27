@@ -26,23 +26,18 @@ This monorepo hosts two shared web apps built on the same pattern: two players c
 - **Cyberpunk Red**: character name, Role (one of ten fixed roles), and Level (1-20).
 - **Laria 5e**: character name, Class, and Level (1-20).
 
-## MVP Scope
-
-- Two-user shared chat with Claude as DM
-- Access code authentication
-- Story/Chapter conversation structure with locked-in character identity
-- MCP-powered lore/rules file access
-- Model instruction configuration
-
 ## Look & Feel
 
 Each app keeps its own distinct visual identity — this is deliberate, not an inconsistency to fix. Shared UI components (`packages/ui`) carry no styling of their own; each app's own `client/src/App.css` supplies different theme values for the same class/id hooks, so a shared component renders correctly differently in each app.
 
 ### Cyberpunk Red
 
-- Dark theme, gray-dominant
-- Minimalistic
-- Mimics the UI of Claude.ai
+- Dark, near-black base (#0a0b10) with faint red and cyan radial glows bleeding in from the top corners — atmospheric, not busy.
+- Two-accent system: brand red (#ff2b4d) for primary actions and navigation selection, cyan (#2fe4ff) for character/party identity and secondary controls. They never compete for the same job.
+- Sharp and angular — 2–3px radii throughout, 1px hairline borders, 2px accent bars on selected items. Nothing pill-shaped or soft.
+- Chakra Petch in uppercase with wide letter-spacing for labels, buttons, and headings; body copy stays neutral sans-serif so long narration reads comfortably.
+- Glow as feedback, not decoration — neon appears on hover, focus, and active states (and the ready indicator), so the interface only lights up where something is live.
+- Restrained overall — flat surfaces, generous negative space, no gradients on components. The cyberpunk read comes from color and type discipline rather than effects.
 
 ### Laria 5e
 
@@ -62,9 +57,3 @@ Each app keeps its own distinct visual identity — this is deliberate, not an i
 - Left vertical panel: conversation list and conversation management
 - Central area: selected conversation and messages; main interaction
 - Right vertical panel: user in-game tools and character-specific displays; column of components separated by h-rules. Some info here is passed to the LLM as part of player prompts.
-
-## Post-MVP (Cyberpunk Red roadmap)
-
-- Deeper Cyberpunk Red game system integration — more rules mechanics beyond the current skill checks, combat, and dice roller (all of which now exist)
-- Character builder: users create and save characters independent of Story creation
-- New game flow: select which saved character to use at a new Story's start
