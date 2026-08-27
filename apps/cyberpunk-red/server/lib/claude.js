@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { users } from "@roleplayer/server-core/users.js";
+import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;
@@ -15,7 +16,6 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL =
   process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
 const PROMPT_PATH = fileURLToPath(new URL("../config/dm-system-prompt.txt", import.meta.url));
-const SUMMARY_PROMPT_PATH = fileURLToPath(new URL("../config/chapter-summary-prompt.txt", import.meta.url));
 
 // Read fresh on every call rather than cached at startup, so editing the
 // prompt file takes effect on the next reply with no server restart needed.
@@ -23,11 +23,7 @@ function loadSystemPrompt() {
   return readFileSync(PROMPT_PATH, "utf-8").trim();
 }
 
-function loadChapterSummaryPrompt() {
-  return readFileSync(SUMMARY_PROMPT_PATH, "utf-8").trim();
-}
-
-// `characterNames` is the Main Story `{ username: characterName }` map when
+// `characterNames` is the Story `{ username: characterName }` map when
 // the conversation is one — Claude gets told the in-fiction names instead of
 // real usernames so it stays in-character. Regular conversations pass
 // `null` and get the existing real-username behavior. `characterDetails` is
@@ -159,38 +155,11 @@ export async function generateReply(
   return "The DM got lost in their notes and couldn't finish that thought — try asking again.";
 }
 
-// A one-shot, tool-free call — summarizing is a fundamentally different task
-// from in-character narration, so it gets its own prompt file rather than
-// reusing dm-system-prompt.txt. Not cached: this only ever runs once per
-// chapter transition, so there's no repeat request to benefit from it.
-//
-// The transcript is wrapped in a single user message rather than passed as
-// `toAnthropicMessages(history)` directly — a chapter's history naturally
-// ends with the DM's last (assistant-role) reply, and the Anthropic API
-// rejects a `messages` array ending in `assistant` as unsupported "assistant
-// message prefill". Framing the whole transcript as one user-supplied
-// document sidesteps that: there's exactly one user turn, and the summary is
-// Claude's fresh assistant response to it.
-export async function generateChapterSummary(history, characterNames = null) {
-  const roster = buildPlayerRoster(characterNames, null, null, null);
-  const systemText = `${loadChapterSummaryPrompt()}\n\n${roster}`;
-
-  const transcript = history.map((row) => `${row.role === "assistant" ? "DM" : row.sender}: ${row.content}`).join("\n\n");
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1500,
-    system: systemText,
-    messages: [{ role: "user", content: `Here is the chapter transcript:\n\n${transcript}` }],
-  });
-
-  const text = response.content
-    .filter((block) => block.type === "text")
-    .map((block) => block.text)
-    .join("");
-
-  return text.trim() || "The chapter's events could not be summarized automatically — please write one manually.";
-}
+export const generateChapterSummary = createChapterSummaryGenerator({
+  client,
+  model: MODEL,
+  gameLabel: "Cyberpunk Red tabletop campaign",
+});
 
 // The Anthropic API requires strictly alternating user/assistant turns, but
 // both players share role "user" — merge consecutive same-role DB rows into
