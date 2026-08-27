@@ -9,7 +9,11 @@ const MAX_TOOL_ROUNDTRIPS = 5;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const MODEL = "claude-opus-5";
+// Render sets NODE_ENV=production explicitly (see specs/cyberpunk-red/render-hosting.md);
+// locally it's unset, so this defaults to Sonnet in dev and Opus in prod without
+// needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
+const MODEL =
+  process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
 const PROMPT_PATH = fileURLToPath(new URL("../config/dm-system-prompt.txt", import.meta.url));
 const SUMMARY_PROMPT_PATH = fileURLToPath(new URL("../config/chapter-summary-prompt.txt", import.meta.url));
 
