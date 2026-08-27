@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-// Shared by HpTracker and SpTracker: a labeled bar + a pair of independently
-// click-to-edit numbers, plus the save/error/reset plumbing behind them. The
-// caller owns any color logic (wound-state thresholds for HP, always-neutral
-// for SP) and any extra line beneath the numbers (HP's Wound State label) —
-// this component only renders the bar and the numbers themselves.
+// Used by both apps' HpTracker and cyberpunk-red's SpTracker: a labeled bar
+// + a pair of independently click-to-edit numbers, plus the save/error/reset
+// plumbing behind them. The caller owns any color logic (wound-state
+// thresholds for HP, always-neutral for SP) and any extra line beneath the
+// numbers (HP's Wound State label) — this component only renders the bar
+// and the numbers themselves. Laria 5e's AC is a single always-editable
+// number rather than a current/max bar, so AcTracker doesn't use this.
 export default function NumberBarTracker({ conversationId, label, value, colorClass, saveFn, onSaved }) {
   const { current, max } = value ?? { current: 0, max: 0 };
   const [editingField, setEditingField] = useState(null); // null | "current" | "max"
