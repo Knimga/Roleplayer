@@ -1,7 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { me } from "@roleplayer/core/api/auth.js";
-import { listConversations } from "./api/conversations";
-import { groupConversations } from "@roleplayer/core/groupConversations.js";
+import { useAppSession } from "@roleplayer/core/useAppSession.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
 import NewStoryModal from "@roleplayer/ui/NewStoryModal.jsx";
@@ -37,39 +34,20 @@ function Laria5eNewStoryModal(props) {
 }
 
 function App() {
-  const [session, setSession] = useState(null);
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [conversations, setConversations] = useState([]);
-  const [selectedConversationId, setSelectedConversationId] = useState(null);
-
-  useEffect(() => {
-    me()
-      .then((result) => setSession(result))
-      .finally(() => setCheckingSession(false));
-  }, []);
-
-  const refreshConversations = useCallback(async () => {
-    setConversations(await listConversations());
-  }, []);
-
-  useEffect(() => {
-    if (session) refreshConversations();
-  }, [session, refreshConversations]);
-
-  // Only Stories can be created going forward, so "nothing selected" should
-  // be a transient loading state, not a real one a player lands on. Default
-  // to the active chapter of whichever story is closest to the top of the
-  // sidebar's own sort order (most recent activity) — same grouping LeftPanel
-  // itself renders, so "top of the list" means the same thing in both
-  // places. Does nothing once something is selected, and nothing if there's
-  // no story yet (a fresh install with none created).
-  useEffect(() => {
-    if (selectedConversationId || conversations.length === 0) return;
-    const topStory = groupConversations(conversations).find((item) => item.type === "story");
-    if (!topStory) return;
-    const activeChapter = topStory.chapters[topStory.chapters.length - 1];
-    setSelectedConversationId(activeChapter.id);
-  }, [conversations, selectedConversationId]);
+  const {
+    session,
+    setSession,
+    checkingSession,
+    conversations,
+    selectedConversationId,
+    setSelectedConversationId,
+    refreshConversations,
+    handleConversationCreated,
+    handleConversationDeleted,
+    selectedConversation,
+    otherUsername,
+    isActiveChapter,
+  } = useAppSession();
 
   if (checkingSession) {
     return null;
@@ -78,33 +56,6 @@ function App() {
   if (!session) {
     return <LoginScreen onLogin={setSession} />;
   }
-
-  function handleConversationCreated(id) {
-    setSelectedConversationId(id);
-    refreshConversations();
-  }
-
-  function handleConversationDeleted(deletedId) {
-    if (deletedId === selectedConversationId) {
-      setSelectedConversationId(null);
-    }
-    refreshConversations();
-  }
-
-  const selectedConversation = conversations.find((c) => c.id === selectedConversationId);
-  // The other player's username — derived from characterNames' own keys
-  // rather than a separate roster fetch, since it's already right there on
-  // whatever conversation is selected (always exactly one other user).
-  const otherUsername = Object.keys(selectedConversation?.characterNames ?? {}).find((u) => u !== session.username);
-  // A chapter is only "active" (mutable) while no later chapter in the same
-  // story exists yet — mirrors the server's own assertActiveChapter check.
-  // Always true for a conversation with no storyId (regular conversations,
-  // and any Story not yet part of a story).
-  const isActiveChapter =
-    !selectedConversation?.storyId ||
-    !conversations.some(
-      (c) => c.storyId === selectedConversation.storyId && new Date(c.createdAt) > new Date(selectedConversation.createdAt),
-    );
 
   return (
     <div id="layout">
