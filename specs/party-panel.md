@@ -13,7 +13,7 @@ Extends [Main Story](main-story.md)'s right panel with a read-only "Party" secti
 - [x] The row's layout: character name on its own line, level/role on a second line beneath it in smaller text — both left-aligned — and the other player's current Wound State right-aligned, vertically centered against the two-line name/level/role block
 - [x] The Wound State text is color-coded the same way the current user's own Wound State is (light green / light orange / pink for Healthy-or-Lightly-Wounded / Seriously Wounded / Mortally Wounded); nothing renders there if the other player's HP is still at its 0/0 default
 - [x] When the other player's HP change results in a different Wound State, that update appears in this row immediately, without the viewing player needing to switch conversations or otherwise trigger a refetch
-- [ ] The row's third line (see [ready-status-placeholder.md](../ui/ready-status-placeholder.md)) shows the other player's real "ready for DM" status, live — see [ready-for-dm.md](ready-for-dm.md) for the feature this now reflects
+- [ ] The row's third line shows the other player's real "ready for DM" status, live — see [ready-for-dm.md](ready-for-dm.md) for the feature this now reflects
 - [x] Hovering the row shows a highlight and a pointer cursor, signaling it's clickable
 - [x] Clicking the row opens a modal showing: the other character's name/level/role (same styling as the current user's own header, single line, top-left), their avatar at the same 250×300 dimensions as the right panel's avatar frame, and their Description and Weapons & Gear text (each under a small header), avatar on the left and text fields to its right
 - [x] The modal has a landscape aspect ratio

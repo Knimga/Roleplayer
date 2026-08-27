@@ -4,7 +4,7 @@
 Planned
 
 ## Summary
-A per-player, per-conversation toggle: a player marks themselves "ready" once they're done with their part of the current turn, so the other player can see (in the Party panel, live) that they're just waiting on them. Purely a signal between the two players — it has no effect on "Ask the DM," which remains available (or not) exactly as it already is today, to either player, regardless of either player's ready state. Replaces the earlier, purely-decorative "Mark Ready"/party-status placeholder (see [ready-status-placeholder.md](../ui/ready-status-placeholder.md)) with the real thing.
+A per-player, per-conversation toggle: a player marks themselves "ready" once they're done with their part of the current turn, so the other player can see (in the Party panel, live) that they're just waiting on them. Purely a signal between the two players — it has no effect on "Ask the DM," which remains available (or not) exactly as it already is today, to either player, regardless of either player's ready state. Replaces the earlier, purely-decorative "Mark Ready"/party-status placeholder (added in [visual-restyle.md](cyberpunk-red/visual-restyle.md)) with the real thing.
 
 ## Requirements
 - [ ] Clicking "Mark Ready" (next to "Ask the DM") toggles the current player's ready state for the active conversation on; clicking it again toggles it off
@@ -13,7 +13,7 @@ A per-player, per-conversation toggle: a player marks themselves "ready" once th
 - [ ] Both players' ready state automatically resets to "not ready" the moment the DM replies — a new round starts clean, never carrying a stale "ready" from the round that was just resolved
 - [ ] Marking or unmarking ready has no effect on "Ask the DM" — its enabled/disabled state and behavior are completely unchanged by this feature
 - [ ] A new Story starts with both players "not ready"; a new chapter also always starts with both players "not ready" (not carried over from the outgoing chapter, unlike HP/SP/avatar/description/gear)
-- [ ] The button and Party status use the neon-cyan "ready" visual treatment already documented in the UI handoff (see [ready-status-placeholder.md](../ui/ready-status-placeholder.md)'s Decisions for where those CSS classes already live)
+- [ ] The button and Party status use the neon-cyan "ready" visual treatment already documented in the UI handoff (see [visual-restyle.md](cyberpunk-red/visual-restyle.md) for where those CSS classes already live)
 
 ## Decisions
 - **Reset trigger: a DM reply, not a sent message.** Asked directly whether ready should reset on the DM's next reply, on the player's own next message, or never automatically — a DM reply was chosen, since that's what actually closes out a round; "ready" always means "ready for *this* round." A player can still send a message and remain marked ready right up until the DM actually responds (e.g. an aside or a follow-up thought after already signaling they're done), which the "reset on own message" option would have prevented.
@@ -24,7 +24,7 @@ A per-player, per-conversation toggle: a player marks themselves "ready" once th
 - **Self-only, no admin override**: a player can only toggle their own ready state — same self-directed model as every other per-player field in this app (HP, SP, avatar, description, gear).
 - **`PATCH /:id/ready` body is `{ ready: <bool> }`, not an implicit toggle server-side.** The client always knows its own current state (from the already-fetched conversation list) and sends the explicit target value, matching how `saveCharacterHp`/`saveCharacterSp` send explicit values rather than "flip whatever's there" — avoids any double-click/race ambiguity about which state a toggle-without-a-value would land on.
 - **Gated the same way as other mutations**: `isMainStory` required, `assertActiveChapter` enforced (can't toggle ready on a locked chapter) — consistent with `PATCH /:id/hp`/`/:id/sp`, even though the button is already hidden client-side whenever the message form itself is (both live inside the same `isActiveChapter` branch in `ChatView.jsx`).
-- **Party display reuses the exact CSS already written for the placeholder** ([ready-status-placeholder.md](../ui/ready-status-placeholder.md)) — `.party-ready-dot`/`.party-ready-label` plus their `.active` modifiers. That spec is updated to note it's now driven by real data instead of a hardcoded idle state; the CSS itself doesn't change.
+- **Party display reuses the exact CSS already written for the placeholder** (see [visual-restyle.md](cyberpunk-red/visual-restyle.md)) — `.party-ready-dot`/`.party-ready-label` plus their `.active` modifiers. The CSS itself doesn't change; it's now driven by real data instead of a hardcoded idle state.
 
 ## Open Questions
 None currently.

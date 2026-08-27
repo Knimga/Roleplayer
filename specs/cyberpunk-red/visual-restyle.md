@@ -11,7 +11,7 @@ A visual-only restyle of the whole app to a dark cyberpunk aesthetic (near-black
 - [x] The app becomes dark-only — the existing `@media (prefers-color-scheme: dark)` light/dark branch is removed, its values merged into `:root` as the only theme
 - [x] No component's layout, sizing, or structure changes — same elements, same classes, same DOM nesting everywhere
 - [x] Everything not covered by the handoff (because it postdates the reference mockup) keeps working and gets the same visual treatment applied to it: the typing indicator (dots + "is typing..." text) is restyled in place, not removed or altered in behavior
-- [x] Two new, explicitly non-functional UI elements from the handoff mockup are added — see [ready-status-placeholder.md](ready-status-placeholder.md), a separate spec since it's a distinct (non-styling) piece of scope
+- [x] Two new, explicitly non-functional UI elements from the handoff mockup are added — see [ready-for-dm.md](../ready-for-dm.md), a separate spec since it's a distinct (non-styling) piece of scope
 
 ## Decisions
 - **Source of truth: the reference CSS files, not the HTML mockup's inline styles.** `ui-handoff/reference/index.css` and `App.css` are restyled copies of this app's real files (per the handoff's own README, "high-fidelity... implement as specified") and were merged in near-verbatim. `ui-handoff/reference/Cyberpunk RED UI Preview.dc.html` is explicitly marked "illustrative-only... not a component to port" and was used only to see the two new ready-status elements in context (see the other spec) — not as a second, competing source of CSS values.

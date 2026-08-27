@@ -4,7 +4,7 @@
 Implemented
 
 ## Summary
-A third button in the same icon-button row as [character-description.md](character-description.md)'s Description/Weapons & Gear controls, labeled "Map" with a 🌐 emoji icon (see that spec's Decisions for the lucide-react → emoji reversal, which applied to all three buttons on this row identically). Clicking it opens a read-only modal displaying a static map image (`public/cyberpunk-red-map.jpg`), shown smaller than its native resolution and framed with a border. No data, no editing, no LLM involvement — a reference image, not character data.
+A third button in the same icon-button row as [character-description.md](../character-description.md)'s Description/Weapons & Gear controls, labeled "Map" with a 🌐 emoji icon (see that spec's Decisions for the lucide-react → emoji reversal, which applied to all three buttons on this row identically). Clicking it opens a read-only modal displaying a static map image (`public/cyberpunk-red-map.jpg`), shown smaller than its native resolution and framed with a border. No data, no editing, no LLM involvement — a reference image, not character data.
 
 ## Requirements
 - [x] A third icon button appears in the same row as Description/Weapons & Gear, styled identically (square icon button, small caption "Map" centered beneath)

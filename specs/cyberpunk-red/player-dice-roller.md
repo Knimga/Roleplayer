@@ -4,7 +4,7 @@
 Implemented
 
 ## Summary
-A dice-roller panel on the right side of the app (mirroring the conversation sidebar on the left) lets a player build and submit a roll — skill check, attack, damage, or defense — which posts the result into the current conversation as an ordinary player message. This is the player-facing counterpart to [npc-dice-roll.md](../mcp-server/npc-dice-roll.md), which the DM uses for NPC/enemy rolls; this spec supersedes the vague placeholder in [skill-checks-and-dice.md](../post-mvp/skill-checks-and-dice.md).
+A dice-roller panel on the right side of the app (mirroring the conversation sidebar on the left) lets a player build and submit a roll — skill check, attack, damage, or defense — which posts the result into the current conversation as an ordinary player message. This is the player-facing counterpart to [npc-dice-roll.md](npc-dice-roll.md), which the DM uses for NPC/enemy rolls.
 
 ## Requirements
 - [x] A new vertical panel on the right side of the layout, mirroring the left sidebar's dimensions (width, height, border treatment)
@@ -27,7 +27,7 @@ A dice-roller panel on the right side of the app (mirroring the conversation sid
 - `DEFENSE ROLL (MELEE) - ROLLED 12! (1d10 (5) + 7)` — no free-text parenthetical, since that field doesn't apply to this roll type
 
 ## Decisions
-- **Rolling happens server-side**, reusing the exact same dice/crit math already built for [npc-dice-roll.md](../mcp-server/npc-dice-roll.md)'s `roll_dice` MCP tool (extracted into a shared module both the MCP tool and this feature's endpoint call) — not reimplemented client-side. This keeps the two rollers mechanically identical and avoids duplicating the crit-exploding logic.
+- **Rolling happens server-side**, reusing the exact same dice/crit math already built for [npc-dice-roll.md](npc-dice-roll.md)'s `roll_dice` MCP tool (extracted into a shared module both the MCP tool and this feature's endpoint call) — not reimplemented client-side. This keeps the two rollers mechanically identical and avoids duplicating the crit-exploding logic.
 - **Crit logic applies to every roll type except Damage Roll**, as a direct consequence of reusing the shared dice logic: every other roll type is a single d10 (`numDice: 1, sides: 10`), which is exactly the shape the shared logic already treats as crit-eligible. Damage Roll is `Nd6`, which never crits — consistent with the NPC tool's existing rule.
 - **Crit failure label is inferred** as `"CRITICAL FAILURE!"` by symmetry with the given `"CRITICAL!"` success example — not explicitly specified in the request, flagging in case a different wording is wanted.
 - **One atomic action, not roll-then-send**: the same request that performs the roll also inserts the message (mirroring how creating a Main Story or a new regular conversation both bundle "do the thing" and "post about it" into one call) — there's no intermediate state where a roll has happened but hasn't been posted yet.
