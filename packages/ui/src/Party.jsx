@@ -1,5 +1,5 @@
 import { useState } from "react";
-import PartyMemberModal from "./PartyMemberModal";
+import PartyMemberModal from "./PartyMemberModal.jsx";
 import { computeWoundState, woundStateColorClass } from "@roleplayer/core/woundState.js";
 
 // The other player's character, at a glance — read-only, sourced entirely
@@ -8,7 +8,13 @@ import { computeWoundState, woundStateColorClass } from "@roleplayer/core/woundS
 // no fetch of its own. Wound State and ready status both update live via the
 // "character-updated" SSE event handled in ChatView.jsx, which triggers the
 // same refetch that keeps everything else here current.
-export default function Party({ characterName, characterDetails, avatarUrl, description, gear, hp, ready }) {
+//
+// detailField is per-app: the second locked-in character attribute is "role"
+// (Cyberpunk Red) or "playerClass" (Laria 5e) - see NewStoryModal.jsx. The
+// CSS class on that line is a fixed "party-member-level-detail" regardless
+// of app; each app's own App.css styles it identically either way, so this
+// is just one shared selector instead of two identically-styled ones.
+export default function Party({ characterName, characterDetails, avatarUrl, description, gear, hp, ready, detailField }) {
   const [modalOpen, setModalOpen] = useState(false);
 
   if (!characterName || !characterDetails) return null;
@@ -22,8 +28,8 @@ export default function Party({ characterName, characterDetails, avatarUrl, desc
       <div className="party-member" onClick={() => setModalOpen(true)}>
         <div className="party-member-info">
           <strong className="party-member-name">{characterName.toUpperCase()}</strong>
-          <span className="party-member-level-role">
-            Level {characterDetails.level} {characterDetails.role}
+          <span className="party-member-level-detail">
+            Level {characterDetails.level} {characterDetails[detailField]}
           </span>
           <span className="party-ready-status">
             <span className={`party-ready-dot${ready ? " active" : ""}`} />
@@ -41,6 +47,7 @@ export default function Party({ characterName, characterDetails, avatarUrl, desc
           avatarUrl={avatarUrl}
           description={description}
           gear={gear}
+          detailField={detailField}
           onClose={() => setModalOpen(false)}
         />
       )}

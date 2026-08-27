@@ -4,7 +4,7 @@ import AvatarUpload from "@roleplayer/ui/AvatarUpload.jsx";
 import HpTracker from "./HpTracker";
 import AcTracker from "./AcTracker";
 import CharacterTextField from "@roleplayer/ui/CharacterTextField.jsx";
-import Party from "./Party";
+import Party from "@roleplayer/ui/Party.jsx";
 import MapModal from "./MapModal";
 import { saveCharacterDescription, saveCharacterGear } from "./api/conversations";
 
@@ -88,6 +88,7 @@ export default function RightPanel({
             gear={partyGear}
             hp={partyHp}
             ready={partyReady}
+            detailField="playerClass"
           />
           <hr />
         </>

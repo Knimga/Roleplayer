@@ -1,11 +1,13 @@
-export default function PartyMemberModal({ characterName, characterDetails, avatarUrl, description, gear, onClose }) {
+// detailField is per-app: the second locked-in character attribute is
+// "role" (Cyberpunk Red) or "playerClass" (Laria 5e) - see NewStoryModal.jsx.
+export default function PartyMemberModal({ characterName, characterDetails, avatarUrl, description, gear, detailField, onClose }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel party-member-modal" onClick={(e) => e.stopPropagation()}>
         <div className="party-member-modal-header">
           <span className="party-member-modal-name">{characterName}</span>
           <span className="party-member-modal-level">
-            Level {characterDetails.level} {characterDetails.role}
+            Level {characterDetails.level} {characterDetails[detailField]}
           </span>
         </div>
         <div className="party-member-modal-body">
