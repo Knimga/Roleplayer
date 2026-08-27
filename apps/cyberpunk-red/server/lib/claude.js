@@ -15,7 +15,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =
   process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
-const PROMPT_PATH = fileURLToPath(new URL("../config/dm-system-prompt.txt", import.meta.url));
+const PROMPT_PATH = fileURLToPath(new URL("../config/dm-system-prompt.md", import.meta.url));
 
 // Read fresh on every call rather than cached at startup, so editing the
 // prompt file takes effect on the next reply with no server restart needed.
