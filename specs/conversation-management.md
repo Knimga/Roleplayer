@@ -14,7 +14,7 @@ A sidebar lists all conversations, sorted by most recent activity, similar to a 
 - [x] With no conversation selected, the message input's placeholder text reads "+ New Convo" (dim/placeholder styling, not real content)
 - [x] Sending the first message while no conversation is selected creates a new conversation, named by default with today's date, with that message as its first
 - [x] Each sidebar conversation entry has an ellipsis (⋯) menu; left-clicking it opens a menu with "Rename" and "Delete Convo" options
-- [x] "Delete Convo" is only visible to the admin user (flagged in config — see [access-codes.md](../auth/access-codes.md)); the server rejects a delete request from a non-admin session regardless of UI state
+- [x] "Delete Convo" is only visible to the admin user (flagged in config — see [access-codes.md](access-codes.md)); the server rejects a delete request from a non-admin session regardless of UI state
 - [x] Users can rename a conversation via the "Rename" menu option
 - [x] Sidebar conversations are sorted by most recent activity (last message sent), most recent first
 - [x] Sidebar conversation entries show a subtle highlight on mouseover
@@ -29,7 +29,7 @@ A sidebar lists all conversations, sorted by most recent activity, similar to a 
 - A conversation is created at send-time — when the first message is actually submitted — not while the user is merely typing into the placeholder-text input.
 - Which conversation is "currently open" is local, per-browser-session UI state, not synced between the two users. The *set* of conversations is shared (existing requirement), but each user can independently browse a different conversation than the other at the same time.
 - Default conversation name is today's date; exact display format is a plan.md detail, not a spec-level decision.
-- Conversation deletion is restricted to the admin user (see [access-codes.md](../auth/access-codes.md) for the config flag). Only one user is ever admin, so there's no "by creator" ambiguity to resolve. As with every other access-control decision in this project, the real enforcement is server-side (checking `req.user.isAdmin` on the delete route) — the menu option being hidden in the UI is a convenience, not the guard.
+- Conversation deletion is restricted to the admin user (see [access-codes.md](access-codes.md) for the config flag). Only one user is ever admin, so there's no "by creator" ambiguity to resolve. As with every other access-control decision in this project, the real enforcement is server-side (checking `req.user.isAdmin` on the delete route) — the menu option being hidden in the UI is a convenience, not the guard.
 - Conversation cap is 50. Hitting it while creating a new conversation blocks the action and surfaces an inline error message (reusing the existing `role="alert"` notice pattern already used elsewhere in the chat UI, e.g. the "DM already replied" case) rather than introducing a separate modal component for this one case — telling the user to delete old conversations first. No auto-delete/auto-archive of old conversations.
 - Rename interaction: an inline edit (the sidebar entry's name becomes an editable text field in place) rather than a separate modal — fewer moving parts, consistent with the minimalist Claude.ai-like look ([product.md](../../steering/product.md)).
 - Both menu actions (Rename, Delete Convo) live behind the same ellipsis menu per conversation entry, opened on left-click.

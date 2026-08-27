@@ -10,7 +10,7 @@ const MAX_TOOL_ROUNDTRIPS = 5;
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Render sets NODE_ENV=production explicitly (see specs/laria5e/render-hosting.md);
+// Render sets NODE_ENV=production explicitly (see specs/render-hosting.md);
 // locally it's unset, so this defaults to Sonnet in dev and Opus in prod without
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =

@@ -21,7 +21,7 @@ When requested to make a code change, make sure it's absolutely clear whether th
 
 ## Hosting
 
-- Render (public deployment for Cyberpunk Red; Laria 5e not yet deployed), each app as a single Web Service — Express serves both the API and the built React frontend (`client/dist`) from the same origin, avoiding CORS/cross-site-cookie complexity entirely. See `specs/cyberpunk-red/render-hosting.md`.
+- Render (public deployment for Cyberpunk Red; Laria 5e not yet deployed), each app as a single Web Service — Express serves both the API and the built React frontend (`client/dist`) from the same origin, avoiding CORS/cross-site-cookie complexity entirely. See `specs/render-hosting.md`.
 - All required env vars are validated at server startup (`packages/server-core/src/app.js`'s env check) — missing one exits with a clear error rather than degrading silently (e.g. a missing `SESSION_SECRET` would otherwise produce forgeable session cookies instead of an obvious failure).
 
 ## Database

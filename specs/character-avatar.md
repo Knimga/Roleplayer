@@ -4,7 +4,7 @@
 Planned
 
 ## Summary
-Extends Main Story's character identity block in the right panel: each player can upload a portrait image for their character, shown in a fixed-size frame beneath the character name header. Unlike the character name, role, and level — locked forever at creation — the avatar is optional at creation time and replaceable at any time afterward.
+Extends [Main Story](main-story.md)'s character identity block in the right panel: each player can upload a portrait image for their character, shown in a fixed-size frame beneath the character name header. Unlike the character name, role, and level — locked forever at creation — the avatar is optional at creation time and replaceable at any time afterward.
 
 ## Requirements
 - [ ] In a Main Story conversation's right panel, a 250px × 300px frame appears below the name-header-and-Role/Level grouping, separated from it by an `<hr>`
@@ -17,7 +17,7 @@ Extends Main Story's character identity block in the right panel: each player ca
 - [ ] The frame/avatar is absent for non-Main-Story conversations, same as the rest of the character-identity block
 
 ## Decisions
-- **Storage**: a new `avatar_images` jsonb column on `conversations`, shaped `{ "<username>": "<data URL>" }` — same per-username map convention as `character_names`/`character_details`, but mutable (a key can be set, then overwritten, unlike the locked-forever fields). Images are stored as base64 data URLs directly in Postgres rather than on disk, because Render's Web Service filesystem is not guaranteed to survive a redeploy (see [render-hosting.md](../deployment/render-hosting.md)) and this app has no object-storage service configured; Postgres is already the durable store for everything else.
+- **Storage**: a new `avatar_images` jsonb column on `conversations`, shaped `{ "<username>": "<data URL>" }` — same per-username map convention as `character_names`/`character_details`, but mutable (a key can be set, then overwritten, unlike the locked-forever fields). Images are stored as base64 data URLs directly in Postgres rather than on disk, because Render's Web Service filesystem is not guaranteed to survive a redeploy (see [render-hosting.md](render-hosting.md)) and this app has no object-storage service configured; Postgres is already the durable store for everything else.
 - **Size/type limits**: max 3MB per uploaded file, restricted to PNG/JPEG/GIF/WEBP. Enforced both client-side (immediate feedback, avoids uploading something that will be rejected) and server-side (authoritative — re-checked on the actual request body regardless of what the client claims), per this project's established server-side-enforcement pattern.
 - **Upload is a separate endpoint from creation**, since an avatar can be uploaded or replaced at any time, not just at Main Story creation (unlike name/role/level, which are set once in the creation form and never touched again).
 - **Who can upload for whom**: a user can only set their own avatar (keyed by their own username in `avatar_images`) — there's no concept of uploading a portrait on behalf of the other player, or an admin override, since this is purely self-directed character customization.

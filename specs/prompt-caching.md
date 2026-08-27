@@ -15,7 +15,7 @@ Use Anthropic's prompt caching (`cache_control: { type: "ephemeral" }`) in `gene
 
 ## Decisions
 - Breakpoint placement: one after the system prompt, one after the last MCP tool definition, one on the second-to-last entry in the merged message history (everything through the prior exchange is cacheable; the newest user turn + this turn's reply are always fresh, since caching a breakpoint that includes content still being modified within this call's tool loop wouldn't help anyway).
-- Doc file content fetched mid-turn via `read_doc` is *not* specifically targeted by caching — as established when this was discussed, it's never persisted across turns in the first place (only the final text reply is saved to Postgres), so there's nothing recurring there to cache. The real win is the ever-growing persisted transcript.
+- Doc content fetched mid-turn via the MCP doc-reading tool (`read_lore_file` in cyberpunk-red, `read_doc` in laria5e — see [docs-file-access.md](docs-file-access.md)) is *not* specifically targeted by caching — it's never persisted across turns in the first place (only the final text reply is saved to Postgres), so there's nothing recurring there to cache. The real win is the ever-growing persisted transcript.
 - No new dependency — `cache_control` is a plain field on existing Anthropic SDK request shapes (system content blocks, tool definitions, message content blocks), not a separate API.
 
 ## Open Questions

@@ -4,7 +4,7 @@
 Implemented (local dev — real Discord webhook/user-ID values and the Render migration still pending)
 
 ## Summary
-The two players are long-distance friends playing async across far-apart timezones, with no push signal today beyond opening the app. Whenever one player causes a new-message event (a chat message, a dice roll, a DM reply, or a new chapter starting), the *other* player's own Discord webhook gets a short ping — a content snippet, the story/conversation name, an `@`-mention, and a link back to the app — so they know to check in. Gated by a master on/off toggle in the admin Settings modal (see [admin-settings.md](../ui/admin-settings.md)).
+The two players are long-distance friends playing async across far-apart timezones, with no push signal today beyond opening the app. Whenever one player causes a new-message event (a chat message, a dice roll, a DM reply, or a new chapter starting), the *other* player's own Discord webhook gets a short ping — a content snippet, the story/conversation name, an `@`-mention, and a link back to the app — so they know to check in. Gated by a master on/off toggle in the admin Settings modal (see [admin-settings.md](admin-settings.md)).
 
 ## Requirements
 - [x] A player's chat message, dice roll, the DM's reply, or a new chapter starting notifies the *other* player's Discord webhook — never the actor's own
@@ -23,7 +23,7 @@ The two players are long-distance friends playing async across far-apart timezon
 - **App link is always the root URL** (`https://cyberpunk-red-rp.onrender.com/`), never a deep link to a specific chapter. Accepted limitation: `App.jsx`'s `selectedConversationId` is pure React state with no URL sync, so there is no route to link to. Not building URL-based routing just for this — out of scope.
 - **Fire-and-forget, fails closed.** `notifyOtherPlayer` never throws and is never `await`ed by its callers before responding to the client — matches this app's existing `sendTypingPing`-style pattern (outer `try/catch` around all synchronous logic, plus a `.catch()`-only handler on the webhook `fetch` that only logs). If the settings lookup itself errors, the notification is silently skipped rather than risking an unexpected send or a hung request.
 - **Explicitly out of scope**: de-duplication/debouncing of rapid-fire events, retry-on-failure logic, entering Discord credentials through the UI (env vars only, admin edits Render's dashboard directly), rich Discord embeds (plain `content` string is enough).
-- **Master toggle and admin Settings modal live in [admin-settings.md](../ui/admin-settings.md)** — this spec covers the notification-triggering/formatting/hook-point logic only, not the toggle's own storage or UI.
+- **Master toggle and admin Settings modal live in [admin-settings.md](admin-settings.md)** — this spec covers the notification-triggering/formatting/hook-point logic only, not the toggle's own storage or UI.
 
 ## Open Questions
 None currently. Nick's Discord webhook URL/user ID are not yet available — the feature is designed to degrade gracefully (silently no-op for his side) until they are.

@@ -8,7 +8,7 @@ A third button in the same icon-button row as [character-description.md](charact
 
 ## Requirements
 - [x] A third icon button appears in the same row as Description/Weapons & Gear, styled identically (square icon button, small caption "Map" centered beneath)
-- [x] Its icon is 🌐 (see [character-description.md](character-description.md)'s Decisions — this row briefly used Lucide's `earth` icon, then reverted to the mockup's literal emoji)
+- [x] Its icon is 🌐 (see [character-description.md](../character-description.md)'s Decisions — this row briefly used Lucide's `earth` icon, then reverted to the mockup's literal emoji)
 - [x] Clicking the button opens a modal showing `public/cyberpunk-red-map.jpg`
 - [x] The image displays at roughly 80% of its native pixel size (native: 1024×1015) — its resolution doesn't hold up at full size, so it's shown smaller
 - [x] The image has a visible gray border/frame within the modal

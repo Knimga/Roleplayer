@@ -4,7 +4,7 @@
 Planned
 
 ## Summary
-Extends [Main Story](../conversations/main-story.md) character creation: alongside a character name, each player also picks a Role (one of the ten Cyberpunk Red roles) and a Level (1-20). This is locked in at creation, same as the character name, and displayed beneath the character name header in the right panel as small gray italic text, e.g. "Level 4 Solo".
+Extends [Main Story](../main-story.md) character creation: alongside a character name, each player also picks a Role (one of the ten Cyberpunk Red roles) and a Level (1-20). This is locked in at creation, same as the character name, and displayed beneath the character name header in the right panel as small gray italic text, e.g. "Level 4 Solo".
 
 ## Requirements
 - [ ] The "New Main Story" form requires, per player: character name (existing), Role (picked from a fixed list of 10), Level (a number 1-20)

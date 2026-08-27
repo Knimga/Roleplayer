@@ -17,7 +17,7 @@ Extends [character-hp.md](character-hp.md) with a second, simpler number tracker
 - [ ] New-chapter creation carries SP over as the new chapter's starting value, same as HP and the other character fields
 - [ ] The section is absent for non-Story conversations and locked (read-only) on an inactive chapter, same as HP
 - [ ] SP is never sent to the LLM during "Ask the DM" calls — not the raw numbers, and (unlike HP) not any derived value either
-- [ ] The HP numbers row is now prefixed "HP" and the SP numbers row is prefixed "SP" (e.g. "HP 47/47", "SP 12/12"), so the two stacked trackers are distinguishable — this is a small addition to the already-implemented [character-hp.md](character-hp.md), not just new-for-SP
+- [ ] The HP numbers row is now prefixed "HP" and the SP numbers row is prefixed "SP" (e.g. "HP 47/47", "SP 12/12"), so the two stacked trackers are distinguishable — this is a small addition to the already-implemented [character-hp.md](../character-hp.md), not just new-for-SP
 
 ## Decisions
 - **Storage**: a new `character_sp` jsonb column on `conversations`, shaped identically to `character_hp` — `{ "<username>": { "current": <int>, "max": <int> } }`, seeded to `{ current: 0, max: 0 }` for both players at Story creation, carried over on new-chapter creation. Same lifecycle, same `PATCH /:id/sp` merge/validate/self-only/active-chapter-gated shape as `PATCH /:id/hp` — see [plan-character-hp.md](plan-character-hp.md) for the pattern being mirrored.
