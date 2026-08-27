@@ -4,10 +4,37 @@ import { listConversations } from "./api/conversations";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
-import NewStoryModal from "./NewStoryModal";
+import NewStoryModal from "@roleplayer/ui/NewStoryModal.jsx";
 import ChatView from "@roleplayer/ui/ChatView.jsx";
 import RightPanel from "./RightPanel";
 import "./App.css";
+
+const CLASSES = [
+  "Barbarian",
+  "Bard",
+  "Cleric",
+  "Druid",
+  "Fighter",
+  "Monk",
+  "Paladin",
+  "Ranger",
+  "Rogue",
+  "Sorcerer",
+  "Warlock",
+  "Wizard",
+];
+
+function Laria5eNewStoryModal(props) {
+  return (
+    <NewStoryModal
+      {...props}
+      detailField="playerClass"
+      detailLabel="Class"
+      detailLabelPlural="classes"
+      detailOptions={CLASSES}
+    />
+  );
+}
 
 function App() {
   const [session, setSession] = useState(null);
@@ -95,7 +122,7 @@ function App() {
             <div className="wordmark-subtitle">RP</div>
           </div>
         }
-        NewStoryModal={NewStoryModal}
+        NewStoryModal={Laria5eNewStoryModal}
       />
       <ChatView
         username={session.username}

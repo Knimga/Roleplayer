@@ -1,19 +1,6 @@
 import { useEffect, useState } from "react";
 import { listUsers } from "@roleplayer/core/api/auth.js";
-import { createStory } from "./api/conversations";
-
-const ROLES = [
-  "Rockerboy",
-  "Solo",
-  "Netrunner",
-  "Tech",
-  "Medtech",
-  "Media",
-  "Exec",
-  "Lawman",
-  "Fixer",
-  "Nomad",
-];
+import { createStory } from "@roleplayer/core/api/conversations.js";
 
 function capitalize(name) {
   const trimmed = name.trim();
@@ -26,7 +13,12 @@ function isValidLevel(level) {
   return level !== "" && Number.isInteger(n) && n >= 1 && n <= 20;
 }
 
-export default function NewStoryModal({ onCreated, onCancel }) {
+// detailField/detailLabel/detailLabelPlural/detailOptions are per-app: the
+// second locked-in character attribute is Role (Cyberpunk Red) or Class
+// (Laria 5e) - genuinely different vocabularies over the same shape, so the
+// app supplies its own field name, label text, and valid options rather
+// than this component knowing either game's terms.
+export default function NewStoryModal({ onCreated, onCancel, detailField, detailLabel, detailLabelPlural, detailOptions }) {
   const [roster, setRoster] = useState([]);
   const [names, setNames] = useState({});
   const [details, setDetails] = useState({});
@@ -41,7 +33,7 @@ export default function NewStoryModal({ onCreated, onCancel }) {
     roster.length > 0 &&
     roster.every((u) => {
       const d = details[u.username] ?? {};
-      return names[u.username]?.trim() && ROLES.includes(d.role) && isValidLevel(d.level);
+      return names[u.username]?.trim() && detailOptions.includes(d[detailField]) && isValidLevel(d.level);
     });
 
   function updateDetail(username, field, value) {
@@ -58,7 +50,10 @@ export default function NewStoryModal({ onCreated, onCancel }) {
         Object.entries(names).map(([username, name]) => [username, capitalize(name)]),
       );
       const characterDetails = Object.fromEntries(
-        roster.map((u) => [u.username, { role: details[u.username].role, level: Number(details[u.username].level) }]),
+        roster.map((u) => [
+          u.username,
+          { [detailField]: details[u.username][detailField], level: Number(details[u.username].level) },
+        ]),
       );
       const conversation = await createStory(characterNames, characterDetails);
       onCreated(conversation.id);
@@ -73,7 +68,7 @@ export default function NewStoryModal({ onCreated, onCancel }) {
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <h2>New Story</h2>
         <p className="modal-subtitle">
-          Character names, roles, and levels are locked in once this story begins.
+          Character names, {detailLabelPlural}, and levels are locked in once this story begins.
         </p>
         <form onSubmit={handleSubmit}>
           {roster.map((u, index) => (
@@ -88,17 +83,17 @@ export default function NewStoryModal({ onCreated, onCancel }) {
                 />
               </label>
               <label>
-                Role
+                {detailLabel}
                 <select
-                  value={details[u.username]?.role ?? ""}
-                  onChange={(e) => updateDetail(u.username, "role", e.target.value)}
+                  value={details[u.username]?.[detailField] ?? ""}
+                  onChange={(e) => updateDetail(u.username, detailField, e.target.value)}
                 >
                   <option value="" disabled>
                     Select...
                   </option>
-                  {ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
+                  {detailOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
                     </option>
                   ))}
                 </select>

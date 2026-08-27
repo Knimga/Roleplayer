@@ -4,10 +4,35 @@ import { listConversations } from "./api/conversations";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
-import NewStoryModal from "./NewStoryModal";
+import NewStoryModal from "@roleplayer/ui/NewStoryModal.jsx";
 import ChatView from "@roleplayer/ui/ChatView.jsx";
 import RightPanel from "./RightPanel";
 import "./App.css";
+
+const ROLES = [
+  "Rockerboy",
+  "Solo",
+  "Netrunner",
+  "Tech",
+  "Medtech",
+  "Media",
+  "Exec",
+  "Lawman",
+  "Fixer",
+  "Nomad",
+];
+
+function CyberpunkNewStoryModal(props) {
+  return (
+    <NewStoryModal
+      {...props}
+      detailField="role"
+      detailLabel="Role"
+      detailLabelPlural="roles"
+      detailOptions={ROLES}
+    />
+  );
+}
 
 function App() {
   const [session, setSession] = useState(null);
@@ -90,7 +115,7 @@ function App() {
         onRenamed={refreshConversations}
         onDeleted={handleConversationDeleted}
         header={<img src="/cyberpunk-red-logo.png" alt="Cyberpunk Red" id="sidebar-logo" />}
-        NewStoryModal={NewStoryModal}
+        NewStoryModal={CyberpunkNewStoryModal}
       />
       <ChatView
         username={session.username}
