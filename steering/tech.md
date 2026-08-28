@@ -21,15 +21,25 @@ When requested to make a code change, make sure it's absolutely clear whether th
 
 ## Hosting
 
-- Render (public deployment for Cyberpunk Red; Laria 5e not yet deployed), each app as a single Web Service — Express serves both the API and the built React frontend (`client/dist`) from the same origin, avoiding CORS/cross-site-cookie complexity entirely. See `specs/render-hosting.md`.
+- Render — both Cyberpunk Red and Laria 5e are deployed, each as its own single Web Service — Express serves both the API and the built React frontend (`client/dist`) from the same origin, avoiding CORS/cross-site-cookie complexity entirely. See `specs/render-hosting.md`. Build command (`npm ci --include=dev && npm run build --workspace=apps/<app>/client`) needs `--include=dev` explicitly — Render sets `NODE_ENV=production` for the build step, which makes plain `npm ci` skip `devDependencies` (where `vite` lives), so a bare `npm ci` fails the build with `vite: not found`.
 - All required env vars are validated at server startup (`packages/server-core/src/app.js`'s env check) — missing one exits with a clear error rather than degrading silently (e.g. a missing `SESSION_SECRET` would otherwise produce forgeable session cookies instead of an obvious failure).
 
 ## Database
 
-- Both apps share **one** Postgres instance (root `docker-compose.yml` locally), but each is confined to its own schema (`cyberpunk_red` / `laria5e`) via its own scoped login role — enforced at the database permission level, not naming convention. See `infra/postgres/init/01-schemas-and-roles.sql`.
+- Both apps share **one** Postgres instance, but each is confined to its own schema (`cyberpunk_red` / `laria5e`) via its own scoped login role. **Locally** (root `docker-compose.yml`) this is enforced at the database permission level — see `infra/postgres/init/01-schemas-and-roles.sql`. **In production (Render), it is not** — see the callout below.
 - Each app's `lib/db.js` is a thin shim calling `packages/server-core`'s `createDb(schema)` with its own `schema.js`.
 - Migrations run per-app (`npm run db:migrate` from that app's `server/`); each app's migration-tracking table lives inside its own schema, not a shared one.
-- Cyberpunk Red's production database is still on the old pre-monorepo setup (unscoped role, `public` schema) — migrating it is a deliberate, not-yet-executed, separate step given it holds live campaign data. See `specs/cyberpunk-red/prod-schema-migration.md`.
+- Cyberpunk Red's live production data was migrated from the old pre-monorepo setup (unscoped role, `public` schema) into its own `cyberpunk_red` schema, and Laria 5e's schema was created and migrated fresh — both done; see `specs/cyberpunk-red/prod-schema-migration.md` for the executed plan and the gotchas hit doing it live.
+
+### ⚠️ Open gap: prod DB roles aren't actually schema-isolated
+
+Render's managed Postgres has no dashboard option to create a properly scoped, low-privilege login role — "add a database user" just creates another full-access login, automatically made a member of the database's owner role (with an automatic `SET ROLE` on every connect) but **without `ADMIN OPTION`** on that membership. Consequences:
+
+- Neither `cyberpunkred_postgres_db_user` nor `laria5e_postgres_db_user`'s owner-role membership can be revoked, nor can their role attributes (e.g. a persistent `search_path`) be altered, by us — both require `ADMIN OPTION`/`CREATEROLE` privilege over the *other* role, which Render didn't grant either of us.
+- Both roles currently have full read/write access to **both** schemas at the Postgres permission level — not just their own.
+- Each app's prod `DATABASE_URL` sets `search_path` via the connection string's `options=-c search_path=<schema>` param instead (since `ALTER ROLE ... SET search_path` hit the same `ADMIN OPTION` wall) — this only changes what an *unqualified* query resolves to by default. It is **not** an access boundary: an explicitly schema-qualified query, or a session's own `SET search_path`, would still reach the other app's data.
+- **The only real protection right now is application-code discipline** — neither app's `schema.js`/queries ever reference the other app's schema — not anything the database enforces, unlike local dev.
+- **Fixing this needs a Render support request** (ask them to grant `ADMIN OPTION` on the membership, or provision genuinely scoped roles directly) — not yet done. Revisit before this gap matters more, e.g. before either app's backend code sees less-trusted hands.
 
 ## AI
 

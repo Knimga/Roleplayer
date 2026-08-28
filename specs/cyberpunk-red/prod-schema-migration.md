@@ -1,9 +1,10 @@
 # Spec: Production Schema Migration (public → cyberpunk_red)
 
 ## Status
-Not started. Written up as a reviewed plan; **do not run any of this against the
-live Render database without explicit go-ahead at the time**, and preferably
-during a quiet moment for the active campaign (no one mid-conversation).
+Executed. The schema move and the three pending migrations (0012-0014) ran
+successfully against the live Render database, with real data intact
+throughout. Two things happened differently than this plan originally
+assumed — see Outcome below.
 
 ## Why
 The monorepo restructure's data-segregation requirement (both apps share one
@@ -196,3 +197,45 @@ Before running this against prod, check the live row's current value first
   change to the live app/active campaign, so it needs the same sign-off as
   everything else in this doc, not just being bundled in because it's
   convenient.
+
+## Outcome
+
+Executed live. `stories`/`conversations`/`messages`/`__drizzle_migrations`
+moved into `cyberpunk_red` via the `ALTER TABLE ... SET SCHEMA` transaction
+exactly as planned — atomic, no data loss, verified against the pre-migration
+`pg_dump` backup afterward (row counts matched). `app_settings` didn't exist
+in prod at all before this (migration 0012 creates it) — the plan's Open
+Question about the exact prod table list was resolved to "3 tables, no
+`app_settings`," not the 4 originally assumed.
+
+Two things didn't go as planned, both around role privilege:
+
+- **The role-creation/scoping section above was never actually run as
+  written.** Render's dashboard doesn't support raw `CREATE ROLE` — instead
+  we used Render's own "add a database user" feature for both
+  `cyberpunkred_postgres_db_user` and `laria5e_postgres_db_user`. That
+  automatically makes each one a member of the database's owner role (with
+  an automatic `SET ROLE` on connect) but **without `ADMIN OPTION`** — so
+  the `REVOKE ... FROM ...` / `ALTER ROLE ... SET search_path` /
+  `ALTER ROLE ... RESET ROLE` statements above all fail with "permission
+  denied," for either role, run by either role. Neither of us can grant
+  ourselves that privilege; it needs a Render support request. See
+  `steering/tech.md`'s "Open gap: prod DB roles aren't actually
+  schema-isolated" callout — both apps' Postgres roles currently have full
+  read/write access to both schemas, not just their own. The `GRANT ...
+  ON SCHEMA/TABLES/SEQUENCES` statements above still ran fine (granting on
+  an object you own doesn't need `ADMIN OPTION` on the grantee), they're
+  just redundant on top of the un-revocable owner access.
+- **`search_path` is set via each app's `DATABASE_URL` connection string
+  instead of `ALTER ROLE`**, for the same reason —
+  `?options=-c%20search_path%3D<schema>` appended to the connection string
+  achieves the same practical effect (the app's queries resolve to its own
+  schema without needing every query schema-qualified) without needing any
+  elevated privilege, since it's a client-supplied startup parameter, not a
+  persistent server-side role attribute. This is **not** a security
+  boundary, just a default-resolution convenience — see the tech.md
+  callout.
+
+Laria 5e's schema was created and migrated (all 18 migrations, fresh) the
+same session, using the same `options`-based `search_path` approach — no
+live data to move there, just a fresh schema.
