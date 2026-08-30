@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { users } from "@roleplayer/server-core/users.js";
 import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
 import { createCampaignBibleGenerator, buildCampaignBibleContext } from "@roleplayer/server-core/campaignBible.js";
+import { loadDmSystemPromptCore } from "@roleplayer/server-core/dmSystemPromptCore.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;
@@ -16,12 +17,22 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =
   process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
-const PROMPT_PATH = fileURLToPath(new URL("../config/dm-system-prompt.md", import.meta.url));
+const TONE_PROMPT_PATH = fileURLToPath(new URL("../config/laria-system-prompt.md", import.meta.url));
+const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/laria-reference-files.md", import.meta.url));
 
-// Read fresh on every call rather than cached at startup, so editing the
-// prompt file takes effect on the next reply with no server restart needed.
+// Read fresh on every call rather than cached at startup, so editing any of
+// the three prompt fragments takes effect on the next reply with no server
+// restart needed. Assembled in this order - opening + tone (per-app) first
+// for emphasis, then the shared mechanics/behavior core (packages/server-core,
+// identical across both apps), then the per-app reference-file list last
+// (appendix-style, not tone-setting) - tone was moved out of its original
+// middle position specifically to give it top billing once the shared core
+// was extracted into its own file.
 function loadSystemPrompt() {
-  return readFileSync(PROMPT_PATH, "utf-8").trim();
+  const tone = readFileSync(TONE_PROMPT_PATH, "utf-8").trim();
+  const core = loadDmSystemPromptCore();
+  const referenceFiles = readFileSync(REFERENCE_FILES_PATH, "utf-8").trim();
+  return `${tone}\n\n${core}\n\n${referenceFiles}`;
 }
 
 // `characterNames` is the Story `{ username: characterName }` map when
