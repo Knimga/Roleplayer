@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const PROMPT_PATH = fileURLToPath(new URL("./campaign-bible-prompt.md", import.meta.url));
+const PROMPT_PATH = fileURLToPath(new URL("../prompts/campaign-bible-prompt.md", import.meta.url));
 // Generous relative to generateReply's MAX_TOOL_ROUNDTRIPS (5) - this call
 // can involve several lore-lookup rounds before Claude is ready to finalize,
 // especially against a larger doc corpus (Laria 5e's, for instance), plus

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { users } from "./users.js";
 
-const PROMPT_PATH = fileURLToPath(new URL("./chapter-summary-prompt.md", import.meta.url));
+const PROMPT_PATH = fileURLToPath(new URL("../prompts/chapter-summary-prompt.md", import.meta.url));
 
 // Read fresh on every call rather than cached at startup, so editing the
 // prompt file takes effect on the next summary with no server restart

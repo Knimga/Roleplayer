@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const CORE_PROMPT_PATH = fileURLToPath(new URL("./dm-system-prompt-core.md", import.meta.url));
+const CORE_PROMPT_PATH = fileURLToPath(new URL("../prompts/dm-system-prompt-core.md", import.meta.url));
 
 // Read fresh on every call rather than cached at startup, so editing the
 // shared core prompt takes effect on the next reply with no server restart
