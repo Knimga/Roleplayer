@@ -8,6 +8,9 @@ import { pgTable, uuid, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-c
 export const stories = pgTable("stories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
+  campaignBible: jsonb("campaign_bible"), // { campaignInput, centralConflict, secondaryNpcs } - immutable once set; null until the Campaign Bible feature is used for this story
+  beatsTracker: jsonb("beats_tracker"), // [{ id, title, narrative, status }], status: pending|active|complete; null until a bible exists
+  villainPlanTracker: jsonb("villain_plan_tracker"), // { goal, awarenessOfPlayers, steps: [{step,description,status,resolution?,adaptedFrom?}] }; null until a bible exists
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

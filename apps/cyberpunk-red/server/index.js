@@ -10,6 +10,7 @@ import conversationsRouter from "./routes/conversations.js";
 import { db } from "./lib/db.js";
 import { stories } from "./db/schema.js";
 import { getSettings, setDiscordNotificationsEnabled } from "./lib/settings.js";
+import { generateCampaignBible } from "./lib/claude.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, "../client/dist");
@@ -18,7 +19,7 @@ const PORT = process.env.PORT || 3001;
 const app = createApp({
   authRouter,
   conversationsRouter,
-  storiesRouter: createStoriesRouter(db, stories),
+  storiesRouter: createStoriesRouter(db, stories, { generateCampaignBible }),
   settingsRouter: createSettingsRouter(getSettings, setDiscordNotificationsEnabled),
   sessionSecret: SESSION_SECRET,
   clientDistDir: CLIENT_DIST,

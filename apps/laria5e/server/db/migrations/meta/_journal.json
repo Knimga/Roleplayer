@@ -127,6 +127,13 @@
       "when": 1787564705000,
       "tag": "0017_add_character_ac",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1788110973169,
+      "tag": "0018_next_captain_britain",
+      "breakpoints": true
     }
   ]
 }

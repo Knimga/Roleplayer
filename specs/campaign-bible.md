@@ -2,9 +2,10 @@
 
 ## Status
 
-Planned — phased implementation, not started. This doc is the working
-reference for the whole build; update each phase's status as work lands
-rather than treating this as a fire-and-forget plan.
+Phases 1-2 implemented (see Phases below for what that covers and what's
+still pending). This doc is the working reference for the whole build;
+update each phase's status as work lands rather than treating this as a
+fire-and-forget plan.
 
 Adapted from an external third-party technical spec (kept at the user's
 Desktop as the original source of truth for the underlying idea) — that
@@ -36,11 +37,26 @@ departures from the original, decided before writing this doc:
 
 ## Phases
 
-- [ ] **Phase 1 — Data model + creation flow.** Schema, the admin-triggered
+- [x] **Phase 1 — Data model + creation flow.** Schema, the admin-triggered
   creation flow (campaign input → generate → review/edit → persist).
   Ship and validate generation reliability across several real runs
-  before touching anything live.
-- [ ] **Phase 2 — Per-request context injection + caching tiers.** Claude
+  before touching anything live. Implemented: `stories.campaignBible`/
+  `beatsTracker`/`villainPlanTracker` columns (both apps), `campaignBible.js`
+  (shared generator + `initializeTrackers`), the generate/approve/get routes
+  on `storiesRouter.js`, and `CampaignManagementModal.jsx`'s Generate tab +
+  the two read-only "danger zone" tabs (Bible Text, Beats & Villain Plan —
+  live tracker viewing, admin-only, red-styled per the spoiler risk).
+  One real bug hit and fixed during testing: `max_tokens: 4096` was too low
+  — a detailed Central Conflict + up to 4 NPCs + up to 5 beats routinely
+  consumed the whole budget before `villainPlan` (last in the schema) was
+  ever reached, so it silently came back `undefined` every time rather than
+  malformed — confirmed via `stop_reason: "max_tokens"` logging, not just
+  inferred. Fixed by raising `max_tokens` to 16000 (confirmed clean on the
+  first attempt after) and adding `findMissingFields` validation with a
+  retry-with-feedback loop as defense in depth, so a future truncation (or
+  any other incomplete tool call) can never again reach the frontend as
+  silently-broken data — it previously crashed `BibleDraftEditor` outright.
+- [x] **Phase 2 — Per-request context injection + caching tiers.** Claude
   *reads* current beat/villain-plan state every turn; nothing writes yet.
   Isolates "does this change narration quality or cost" from "does
   mutation logic work."
@@ -181,6 +197,26 @@ Single object per Story:
 
 ## 4. Per-Request Context Injection (Phase 2)
 
+**Implemented as**: `packages/server-core/src/campaignBible.js`'s
+`buildCampaignBibleContext({ campaignBible, beatsTracker, villainPlanTracker })`
+— returns `null` (no injection at all) if the Story has no Bible yet,
+otherwise a text block with Central Conflict + the active beat + only the
+`underway` step(s)/awareness level, prefixed with an explicit
+never-mention-this-to-players instruction. Wired into both apps'
+`generateReply` (new trailing params) and called from both `/respond` and
+`/new-chapter`'s intro-generation call site in `routes/conversations.js`.
+
+**Fourth-wall precaution is defense in depth, not single-layered**: the
+instruction lives both in the injected tier-2 block itself (present only
+when a Bible exists) *and* as a standalone `# Fourth Wall & Hidden Campaign
+Context` section added to each app's static `dm-system-prompt.md` (tier 1,
+always present, harmless no-op for Stories without a Bible) — added
+specifically because this is a structural leak risk (literally naming a
+beat or tracker status) distinct from the semantic leak-check Phase 4
+covers (revealing a secret *fact*, like the antagonist's true identity
+early). Cheap enough to guard against directly rather than waiting on
+Phase 4 to exist.
+
 ### 4.1 What's sent every call
 
 Alongside existing metadata (character names, appearances, health
@@ -204,12 +240,14 @@ monolithic cached block:
    instructions, continuity-check rules, output format rules. Identical
    across all Stories and requests.
 2. **Session/state tier** (cached, invalidated on actual change) —
-   Central Conflict, Tone Guardrails, current beat `{id, title,
-   narrative, status}`, and villain plan `{active_steps,
-   awareness_of_players}`. Only changes when a session starts or when
-   `update_beats`/`update_villain_plan` actually fires — not on a fixed
-   per-turn basis — so it stays cached across the (typically many) turns
-   in between.
+   Central Conflict, current beat `{id, title, narrative, status}`, and
+   villain plan `{active_steps, awareness_of_players}`. Only changes when
+   a session starts or when `update_beats`/`update_villain_plan` actually
+   fires — not on a fixed per-turn basis — so it stays cached across the
+   (typically many) turns in between. ("Tone Guardrails," mentioned in
+   the original third-party spec, was never actually part of the §2.1
+   data model Phase 1 built — omitted here rather than invented on the
+   spot; add it as a real field later if wanted.)
 3. **Per-request tier** (uncached) — character metadata: health,
    position, and other combat/scene state that can plausibly change on
    every single response. Placed after tier 2 so its volatility doesn't
@@ -218,6 +256,14 @@ monolithic cached block:
 Only tier 3 is rebuilt every call. Tiers 1–2 persist across many calls
 and are invalidated only when their underlying content actually changes
 (a beat transition, a new session).
+
+**Implemented as**: `generateReply`'s `system` param is now an array of
+up to 3 blocks instead of one concatenated string — tier 1
+(`loadSystemPrompt()`) and tier 2 (`buildCampaignBibleContext(...)`, when
+non-null) each get their own `cache_control: { type: "ephemeral" }`
+breakpoint; tier 3 (`buildPlayerRoster(...)`) has none, so it's always
+sent fresh. For a Story with no Bible, this is just the pre-existing
+2-block shape (tier 1 + tier 3) — no behavior change from before Phase 2.
 
 ## 5. MCP Interface (Phase 3, except 5.1 which Phase 2 also depends on)
 

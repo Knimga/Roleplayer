@@ -774,6 +774,112 @@
   color: #0a0b10;
 }
 
+.campaign-bible-modal {
+  width: 640px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+}
+
+.campaign-bible-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.campaign-bible-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #262a38);
+  margin-bottom: 16px;
+}
+
+.campaign-bible-tabs button {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.campaign-bible-tabs button.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent-border);
+}
+
+.campaign-bible-tabs button.danger-tab {
+  color: #ff5470;
+}
+
+.campaign-bible-tabs button.danger-tab.active {
+  border-bottom-color: #ff5470;
+}
+
+.campaign-bible-tab-content.danger-zone {
+  border: 1px solid #ff5470;
+  border-radius: 3px;
+  padding: 12px;
+}
+
+.bible-draft-editor label {
+  margin-bottom: 14px;
+}
+
+.bible-draft-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 70px;
+  font: inherit;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border, #262a38);
+  background: var(--bg);
+  color: var(--text-h);
+  resize: vertical;
+  box-sizing: border-box;
+  margin-top: 4px;
+}
+
+.bible-draft-entry {
+  padding: 10px 0;
+  border-top: 1px solid var(--border, #262a38);
+}
+
+.bible-draft-entry:first-of-type {
+  border-top: none;
+}
+
+.bible-readonly p {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.tracker-status-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.8;
+}
+
+.tracker-status-active,
+.tracker-status-underway {
+  color: var(--accent-2, #2fe4ff);
+}
+
+.tracker-status-complete {
+  opacity: 0.6;
+}
+
+.tracker-status-disrupted {
+  color: #ff5470;
+}
+
 #right-panel {
   width: 280px;
   flex-shrink: 0;

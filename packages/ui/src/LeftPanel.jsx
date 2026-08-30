@@ -4,6 +4,7 @@ import { renameStory } from "@roleplayer/core/api/stories.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import NewChapterModal from "./NewChapterModal.jsx";
 import SettingsModal from "./SettingsModal.jsx";
+import CampaignManagementModal from "./CampaignManagementModal.jsx";
 
 // header and NewStoryModal are per-app: header is each app's own logo/wordmark
 // branding, NewStoryModal is a game-specific character-creation form (Role/
@@ -25,6 +26,7 @@ export default function LeftPanel({
   const [renameDraft, setRenameDraft] = useState("");
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [newChapterFor, setNewChapterFor] = useState(null);
+  const [campaignManagementFor, setCampaignManagementFor] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   useEffect(() => {
@@ -173,6 +175,17 @@ export default function LeftPanel({
                           + New Chapter
                         </button>
                       )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setCampaignManagementFor(item.storyId);
+                          }}
+                        >
+                          Campaign Management
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -241,6 +254,10 @@ export default function LeftPanel({
             onConversationCreated(id);
           }}
         />
+      )}
+
+      {campaignManagementFor && (
+        <CampaignManagementModal storyId={campaignManagementFor} onClose={() => setCampaignManagementFor(null)} />
       )}
     </nav>
   );

@@ -688,7 +688,15 @@ router.post("/:id/new-chapter", async (req, res) => {
   if (!conversation.storyId) {
     return res.status(400).json({ error: "Chapters are only supported for Story conversations" });
   }
-  const [story] = await db.select({ name: stories.name }).from(stories).where(eq(stories.id, conversation.storyId));
+  const [story] = await db
+    .select({
+      name: stories.name,
+      campaignBible: stories.campaignBible,
+      beatsTracker: stories.beatsTracker,
+      villainPlanTracker: stories.villainPlanTracker,
+    })
+    .from(stories)
+    .where(eq(stories.id, conversation.storyId));
   if (!(await assertActiveChapter(conversationId, conversation, res))) return;
   if (pendingReplies.has(conversationId)) {
     return res.status(409).json({ error: "This chapter already has something in flight — hang tight." });
@@ -752,6 +760,10 @@ router.post("/:id/new-chapter", async (req, res) => {
         conversation.characterDetails,
         conversation.characterDescriptions,
         conversation.characterGear,
+        undefined,
+        story?.campaignBible ?? null,
+        story?.beatsTracker ?? null,
+        story?.villainPlanTracker ?? null,
       );
 
       const [intro] = await db
@@ -896,6 +908,9 @@ router.post("/:id/respond", async (req, res) => {
       createdAt: conversations.createdAt,
       name: conversations.name,
       storyName: stories.name,
+      campaignBible: stories.campaignBible,
+      beatsTracker: stories.beatsTracker,
+      villainPlanTracker: stories.villainPlanTracker,
     })
     .from(conversations)
     .leftJoin(stories, eq(conversations.storyId, stories.id))
@@ -935,6 +950,9 @@ router.post("/:id/respond", async (req, res) => {
       conversation?.characterDescriptions ?? null,
       conversation?.characterGear ?? null,
       conversation?.characterHp ?? null,
+      conversation?.campaignBible ?? null,
+      conversation?.beatsTracker ?? null,
+      conversation?.villainPlanTracker ?? null,
     );
 
     const [saved] = await db

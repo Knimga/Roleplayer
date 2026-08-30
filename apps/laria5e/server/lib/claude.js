@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { users } from "@roleplayer/server-core/users.js";
 import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
+import { createCampaignBibleGenerator, buildCampaignBibleContext } from "@roleplayer/server-core/campaignBible.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;
@@ -93,9 +94,28 @@ export async function generateReply(
   characterDescriptions = null,
   characterGear = null,
   characterHp = null,
+  campaignBible = null,
+  beatsTracker = null,
+  villainPlanTracker = null,
 ) {
-  const systemText = `${loadSystemPrompt()}\n\n${buildPlayerRoster(characterNames, characterDetails, characterDescriptions, characterGear, characterHp)}`;
-  const system = [{ type: "text", text: systemText, cache_control: CACHE_CONTROL }];
+  // Three independently-cached tiers (see specs/campaign-bible.md §4.2), not
+  // one block: tier 1 (this app's static DM instructions) almost never
+  // changes: tier 2 (Campaign Bible state, if this Story has one) changes
+  // only when a beat/villain-plan update actually fires; tier 3 (player
+  // roster - health, etc.) can change every single turn. Splitting them lets
+  // a tier-3-only change (the common case) still hit the tier 1+2 cache,
+  // instead of invalidating everything on every request.
+  const system = [{ type: "text", text: loadSystemPrompt(), cache_control: CACHE_CONTROL }];
+
+  const bibleContext = buildCampaignBibleContext({ campaignBible, beatsTracker, villainPlanTracker });
+  if (bibleContext) {
+    system.push({ type: "text", text: bibleContext, cache_control: CACHE_CONTROL });
+  }
+
+  system.push({
+    type: "text",
+    text: buildPlayerRoster(characterNames, characterDetails, characterDescriptions, characterGear, characterHp),
+  });
 
   const tools = await getMcpTools();
   if (tools.length > 0) {
@@ -159,6 +179,14 @@ export const generateChapterSummary = createChapterSummaryGenerator({
   client,
   model: MODEL,
   gameLabel: "DnD campaign in the homebrew world of Laria",
+});
+
+export const generateCampaignBible = createCampaignBibleGenerator({
+  client,
+  model: MODEL,
+  gameLabel: "DnD campaign in the homebrew world of Laria",
+  getMcpTools,
+  callMcpTool,
 });
 
 // The Anthropic API requires strictly alternating user/assistant turns, but
