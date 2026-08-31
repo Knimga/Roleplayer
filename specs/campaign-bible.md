@@ -94,6 +94,36 @@ describes the beats-only feature as it actually stands.
   full cached system-prompt/tool-definition tier the narration call
   carries — just the drafted response plus whichever slice of state each
   actually needs.
+
+  (3) The tracker-update pass needs more than just the single latest
+  response to judge beat advancement correctly — a beat's narrative is
+  often satisfied cumulatively across several turns (e.g. two
+  independent facts revealed several turns apart, where neither turn
+  alone contains both), not always by one self-contained scene.
+  Single-turn isolation would systematically under-trigger on exactly
+  this shape of beat, which turned out to be the common case, not an
+  edge case, once real Bible generations were inspected. Fixed by giving
+  the pass a window of recent history instead: the last 10 messages, or
+  everything since the active beat became `active` if fewer than 10 -
+  conservative by design, tune upward later only if real behavior shows
+  it's actually needed, not preemptively. `campaign-tracker-update-pass.md`
+  already reflects this.
+
+  **Chapter-boundary caveat, not yet resolved**: this window can't span
+  a chapter boundary — starting a new chapter (`story-chapters.md`)
+  begins a genuinely fresh `conversations` row with its own message
+  history, seeded only with the AI-generated recap + intro. If a beat
+  has been active since before the current chapter started, "the last
+  10 messages" is whatever exists so far in the *new* chapter, however
+  short — not a true 10-message lookback into the outgoing chapter's
+  history. The chapter's own recap message (already a condensed summary
+  of everything that mattered in the outgoing chapter) is the closest
+  thing to a mitigation here, since it naturally becomes part of the new
+  chapter's early window - but it's a narrative-continuity summary
+  written for the DM's own restart context, not engineered to preserve
+  the specific granular signal a beat-advancement judgment needs. This
+  is a known gap, not a solved one — revisit if real play shows beats
+  stalling across chapter transitions specifically.
 - [ ] **Phase 4 — Leak-prevention pass.** Layered on last: depends on
   Phase 1's secret-fact data, and adds a second LLM call to every DM
   turn's latency/cost budget — worth measuring in isolation before it's
