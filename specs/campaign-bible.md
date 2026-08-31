@@ -128,6 +128,17 @@ describes the beats-only feature as it actually stands.
   the specific granular signal a beat-advancement judgment needs. This
   is a known gap, not a solved one — revisit if real play shows beats
   stalling across chapter transitions specifically.
+
+  **Candidate escalation, not built**: a persistent, per-turn bullet log
+  of events (big and small), carried across chapters, could solve both
+  gaps above at once — more information-dense than raw messages, and
+  unlike the message window, doesn't reset at chapter boundaries. Not
+  pursued now for the same reason villain-plan's time-bucket idea
+  wasn't: new persisted state, a new per-turn generation obligation, and
+  a new lossy-compression layer between what happened and what the
+  judgment reads — real cost for a problem only hypothetical so far.
+  Revisit only if real play shows the window approach actually failing,
+  not preemptively.
 - [ ] **Phase 4 — Leak-prevention pass.** Layered on last: depends on
   Phase 1's secret-fact data, and adds a second LLM call to every DM
   turn's latency/cost budget — worth measuring in isolation before it's
