@@ -103,19 +103,23 @@ describes the beats-only feature as it actually stands.
   Single-turn isolation would systematically under-trigger on exactly
   this shape of beat, which turned out to be the common case, not an
   edge case, once real Bible generations were inspected. Fixed by giving
-  the pass a window of recent history instead: the last 10 messages, or
-  everything since the active beat became `active` if fewer than 10 -
-  conservative by design, tune upward later only if real behavior shows
-  it's actually needed, not preemptively. `campaign-tracker-update-pass.md`
-  already reflects this.
+  the pass a window of recent history instead: the last 20 messages, or
+  everything since the active beat became `active` if fewer than 20 -
+  conservative by design, tune later only if real behavior shows it's
+  actually needed, not preemptively. `campaign-tracker-update-pass.md`
+  describes the windowing concept and the chapter-boundary caveat below,
+  but deliberately doesn't state the exact count — that's a call-site
+  config value (not yet implemented; Phase 3 hasn't been built), tunable
+  without touching the prompt. This doc is the one place the current
+  actual number is recorded.
 
   **Chapter-boundary caveat, not yet resolved**: this window can't span
   a chapter boundary — starting a new chapter (`story-chapters.md`)
   begins a genuinely fresh `conversations` row with its own message
   history, seeded only with the AI-generated recap + intro. If a beat
   has been active since before the current chapter started, "the last
-  10 messages" is whatever exists so far in the *new* chapter, however
-  short — not a true 10-message lookback into the outgoing chapter's
+  20 messages" is whatever exists so far in the *new* chapter, however
+  short — not a true 20-message lookback into the outgoing chapter's
   history. The chapter's own recap message (already a condensed summary
   of everything that mattered in the outgoing chapter) is the closest
   thing to a mitigation here, since it naturally becomes part of the new

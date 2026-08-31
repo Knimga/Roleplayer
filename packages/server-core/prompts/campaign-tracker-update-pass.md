@@ -6,21 +6,18 @@ never see your output directly — you either call `update_beats`, or you
 make no tool call at all.
 
 ## Inputs you receive
-- Recent conversation history, most recent turn last — not just the
-  single response just drafted. This is the last 10 messages, or
-  everything since the active beat became `active` if that's fewer than
-  10 (never more than 10, even if the beat has been active much
-  longer). You need this window because a beat's narrative is often
-  satisfied cumulatively across several responses, not always by one -
-  e.g. one fact established a few turns ago, a second fact (which
-  together with the first satisfies the beat) established only in the
-  latest response. Judging the latest response alone would miss that
-  entirely.
+- A window of recent conversation history, most recent turn last — not
+  just the single response just drafted. You need this window because a
+  beat's narrative is often satisfied cumulatively across several
+  responses, not always by one - e.g. one fact established a few turns
+  ago, a second fact (which together with the first satisfies the beat)
+  established only in the latest response. Judging the latest response
+  alone would miss that entirely.
   (Caveat: this window cannot span a chapter boundary - a new chapter
   starts a fresh message history, so if the active beat has been active
   since before the current chapter started, your window is whatever
-  history exists so far in *this* chapter, however short, not a true
-  10-message lookback. See specs/campaign-bible.md's Phase 3 notes.)
+  history exists so far in *this* chapter, however short, not the full
+  intended lookback. See specs/campaign-bible.md's Phase 3 notes.)
 - The current active beat: `{id, title, narrative, status}`. You do not
   have visibility into future beats, and you must not infer or speculate
   about their content.
