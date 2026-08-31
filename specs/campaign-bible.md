@@ -82,20 +82,41 @@ describes the beats-only feature as it actually stands.
   prompts already exist: `campaign-tracker-update-pass.md` +
   `campaign-tracker-update-instructions.md`, both beats-only now).
   Highest risk — a bad tool call now mutates campaign state mid-session.
-  Two design decisions made while planning this, before any code was
-  written: (1) run as a **separate dedicated pass** after narration is
-  drafted, not folded into the same tool-use loop as the narration call —
-  keeps the update-judgment task from competing for attention with
-  narration quality in one generation; (2) this pass and Phase 4's
-  leak-check pass are logically independent (both read the same drafted
-  response, neither needs the other's output) and should run **in
-  parallel**, not sequentially, to roughly halve the added per-turn
-  latency versus running them one after another. Neither pass needs the
-  full cached system-prompt/tool-definition tier the narration call
-  carries — just the drafted response plus whichever slice of state each
-  actually needs.
+  Design decisions made while planning this, before any code was
+  written:
 
-  (3) The tracker-update pass needs more than just the single latest
+  (1) Runs as a **separate dedicated pass** after narration is drafted,
+  not folded into the same tool-use loop as the narration call — keeps
+  the update-judgment task from competing for attention with narration
+  quality in one generation.
+
+  (2) This pass and Phase 4's leak-check pass both **block the
+  player-facing response** — neither is fire-and-forget after the
+  response is already shown. For leak-check this is required (it can
+  request a rewrite, which has to happen before players see anything);
+  for the tracker-update pass it's a deliberate choice, not a
+  requirement — beat-advancement doesn't affect what the player sees
+  this turn, only what's injected into future turns, so it *could* run
+  after the response is sent. Blocking anyway ensures the latest beat
+  state is available for the very next turn, biasing the system toward
+  timely forward motion rather than a lagging tracker. Since the two
+  passes are logically independent (both read the same drafted response,
+  neither needs the other's output), run them **in parallel** rather
+  than sequentially — same latency-blocking outcome, roughly half the
+  added wait. Neither pass needs the full cached system-prompt/tool-
+  definition tier the narration call carries — just the drafted response
+  plus whichever slice of state each actually needs.
+
+  (3) `update_beats` lives as a **shared, plain tool schema in
+  `packages/server-core`** — not registered on either app's own
+  `mcp/server.js`. Mirrors how `create_campaign_bible` actually got
+  built (a plain tool object passed directly in its own
+  `client.messages.create` call, never an MCP-server-registered tool)
+  rather than the "MCP Tools" framing §5.2 below still uses from the
+  original spec — same reasoning as the rest of this feature: shared
+  where the logic has zero per-app coupling.
+
+  (4) The tracker-update pass needs more than just the single latest
   response to judge beat advancement correctly — a beat's narrative is
   often satisfied cumulatively across several turns (e.g. two
   independent facts revealed several turns apart, where neither turn
@@ -104,8 +125,11 @@ describes the beats-only feature as it actually stands.
   this shape of beat, which turned out to be the common case, not an
   edge case, once real Bible generations were inspected. Fixed by giving
   the pass a window of recent history instead: the last 20 messages, or
-  everything since the active beat became `active` if fewer than 20 -
-  conservative by design, tune later only if real behavior shows it's
+  fewer if the conversation doesn't have that many yet — no attempt to
+  bound the window by when the beat became `active` (that would need a
+  timestamp nothing in the current data model stores; simpler to always
+  use a flat, fixed-size window and accept the tradeoff below).
+  Conservative by design, tune later only if real behavior shows it's
   actually needed, not preemptively. `campaign-tracker-update-pass.md`
   describes the windowing concept and the chapter-boundary caveat below,
   but deliberately doesn't state the exact count — that's a call-site
@@ -116,18 +140,17 @@ describes the beats-only feature as it actually stands.
   **Chapter-boundary caveat, not yet resolved**: this window can't span
   a chapter boundary — starting a new chapter (`story-chapters.md`)
   begins a genuinely fresh `conversations` row with its own message
-  history, seeded only with the AI-generated recap + intro. If a beat
-  has been active since before the current chapter started, "the last
-  20 messages" is whatever exists so far in the *new* chapter, however
-  short — not a true 20-message lookback into the outgoing chapter's
-  history. The chapter's own recap message (already a condensed summary
-  of everything that mattered in the outgoing chapter) is the closest
-  thing to a mitigation here, since it naturally becomes part of the new
-  chapter's early window - but it's a narrative-continuity summary
-  written for the DM's own restart context, not engineered to preserve
-  the specific granular signal a beat-advancement judgment needs. This
-  is a known gap, not a solved one — revisit if real play shows beats
-  stalling across chapter transitions specifically.
+  history, seeded only with the AI-generated recap + intro. Early in a
+  new chapter, the window is simply shorter than 20 messages, not a
+  lookback into the outgoing chapter's history. The chapter's own recap
+  message (already a condensed summary of everything that mattered in
+  the outgoing chapter) is the closest thing to a mitigation here, since
+  it naturally becomes part of the new chapter's early window - but it's
+  a narrative-continuity summary written for the DM's own restart
+  context, not engineered to preserve the specific granular signal a
+  beat-advancement judgment needs. This is a known gap, not a solved one
+  — revisit if real play shows beats stalling across chapter transitions
+  specifically.
 
   **Candidate escalation, not built**: a persistent, per-turn bullet log
   of events (big and small), carried across chapters, could solve both
@@ -308,10 +331,11 @@ sent fresh. For a Story with no Bible, this is just the pre-existing
 
 ## 5. MCP Interface (Phase 3, except 5.1 which Phase 2 also depends on)
 
-Registered per-app (each app's own `mcp/server.js`), calling shared
-handler functions from `packages/server-core` — thin registration, not
-separate per-app logic, same reasoning as this codebase's other shared
-server-core pieces.
+Despite the section name (kept from the original third-party spec this
+doc is adapted from), not everything here is necessarily a literal
+MCP-server-registered tool/resource — see 5.2's note on `update_beats`,
+which deviates from that framing the same way `create_campaign_bible`
+already did.
 
 ### 5.1 MCP Resource (read-only)
 
@@ -335,6 +359,12 @@ Marks the current beat `complete` and advances the next beat to
 `active`. Returns the new active beat as `{id, title, narrative,
 status}` (narrative joined server-side from Bible Text) so the app can
 attach it to future request metadata without a separate fetch.
+
+**Lives as a shared, plain tool schema in `packages/server-core`**, not
+registered on either app's own `mcp/server.js` — mirrors how
+`create_campaign_bible` actually got implemented (a plain tool object
+passed directly in its own `client.messages.create` call) rather than a
+true MCP-server tool. Not yet written — see Phase 3's decision (3) above.
 
 Draft prompts already exist for this — `packages/server-core/prompts/
 campaign-tracker-update-pass.md` (the decision of *whether* to call it)
