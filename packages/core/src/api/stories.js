@@ -44,7 +44,7 @@ export async function approveCampaignBible(storyId, bible) {
   return res.json();
 }
 
-// Read-only fetch for the viewing tabs (Bible Text, Beats & Villain Plan).
+// Read-only fetch for the viewing tabs (Bible Text, Beats).
 export async function getCampaignBible(storyId) {
   const res = await fetch(`${API_BASE}/${storyId}/campaign-bible`, { credentials: "include" });
   const error = await parseErrorOr(res, "Failed to load Campaign Bible");

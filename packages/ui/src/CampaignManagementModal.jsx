@@ -111,7 +111,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
             className={"danger-tab" + (activeTab === "beats" ? " active" : "")}
             onClick={() => setActiveTab("beats")}
           >
-            Beats &amp; Villain Plan
+            Beats
           </button>
         </div>
 
@@ -182,7 +182,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
             ) : !hasBible ? (
               <p className="modal-subtitle">No Campaign Bible created yet — use the Generate tab.</p>
             ) : (
-              <TrackersView beatsTracker={bibleData.beatsTracker} villainPlanTracker={bibleData.villainPlanTracker} />
+              <TrackersView beatsTracker={bibleData.beatsTracker} />
             )}
           </div>
         )}
@@ -277,22 +277,6 @@ function BibleDraftEditor({ draft, onChange }) {
           </label>
         </div>
       ))}
-
-      <hr />
-      <h3>Villain's Plan</h3>
-      <label>
-        Goal
-        <textarea value={draft.villainPlan.goal} onChange={(e) => onChange(["villainPlan", "goal"], e.target.value)} />
-      </label>
-      {draft.villainPlan.steps.map((step, i) => (
-        <label key={step.step}>
-          Step {step.step}
-          <textarea
-            value={step.description}
-            onChange={(e) => onChange(["villainPlan", "steps", i, "description"], e.target.value)}
-          />
-        </label>
-      ))}
     </div>
   );
 }
@@ -336,7 +320,7 @@ function BibleTextView({ bible }) {
   );
 }
 
-function TrackersView({ beatsTracker, villainPlanTracker }) {
+function TrackersView({ beatsTracker }) {
   return (
     <div className="bible-draft-editor bible-readonly">
       <h3>Beats</h3>
@@ -346,22 +330,6 @@ function TrackersView({ beatsTracker, villainPlanTracker }) {
             <strong>{beat.title}</strong> — <span className="tracker-status-label">{beat.status}</span>
           </p>
           <p>{beat.narrative}</p>
-        </div>
-      ))}
-
-      <hr />
-      <h3>Villain's Plan</h3>
-      <p>
-        <strong>Awareness of players:</strong> {villainPlanTracker.awarenessOfPlayers}
-      </p>
-      {villainPlanTracker.steps.map((step) => (
-        <div key={step.step} className={`bible-draft-entry tracker-status-${step.status}`}>
-          <p>
-            <strong>Step {step.step}</strong> — <span className="tracker-status-label">{step.status}</span>
-          </p>
-          <p>{step.description}</p>
-          {step.resolution && <p>Resolution: {step.resolution}</p>}
-          {step.adaptedFrom && <p>Adapted from step {step.adaptedFrom}</p>}
         </div>
       ))}
     </div>

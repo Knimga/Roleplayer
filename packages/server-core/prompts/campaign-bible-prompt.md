@@ -44,12 +44,5 @@ Then provide:
 > - Leave room for a beat to be reached differently than expected, or for players to stumble into a later beat's territory early. The beats are a rough shape for you to steer improvisation toward, not a script to move players through.
 > - It's fine — expected — for the specific triggering condition of each beat to be judged qualitatively during play, not defined here. This is about narrative meaning, not mechanics.
 
-### Villain's Plan
-This is not a countdown to a fixed doomsday. It represents the ongoing, independent pursuit of the goal established in Central Conflict above — whether that conflict is a person, faction, system, or force, it is capable of acting on its own initiative, progressing whether or not players ever engage with it, and adapting cunningly if it becomes aware of the players and their interference.
-
-Provide a `goal` (one sentence, in the antagonist's own terms, independent of the players) and 3-6 sequential `steps`, each a concrete move (not a vague escalation). Step 1 should be something already underway. Write these as a sequence of moves a cunning actor would actually take, not a uniform ramp-up in danger — an early step might be quiet consolidation rather than an aggressive one.
-
-> **IMPORTANT**: This plan is not fixed once written. If players disrupt or expose a step, or the antagonist reacts with a new one, that happens later during play via separate tracker updates — do not pre-write those reactions now; they only make sense in light of what players actually do. Do not frame this plan as a ticking clock or fixed deadline.
-
 ## Style
 Write in plain, direct prose — this is a working reference for you to read before and during sessions, not a document meant to read well to players. Favor specificity over flourish. Every proper noun you introduce here should be one you're prepared to use consistently across many future sessions.

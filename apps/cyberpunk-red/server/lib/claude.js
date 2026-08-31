@@ -107,18 +107,17 @@ export async function generateReply(
   characterHp = null,
   campaignBible = null,
   beatsTracker = null,
-  villainPlanTracker = null,
 ) {
   // Three independently-cached tiers (see specs/campaign-bible.md §4.2), not
   // one block: tier 1 (this app's static DM instructions) almost never
   // changes: tier 2 (Campaign Bible state, if this Story has one) changes
-  // only when a beat/villain-plan update actually fires; tier 3 (player
-  // roster - health, etc.) can change every single turn. Splitting them lets
-  // a tier-3-only change (the common case) still hit the tier 1+2 cache,
-  // instead of invalidating everything on every request.
+  // only when a beat update actually fires; tier 3 (player roster - health,
+  // etc.) can change every single turn. Splitting them lets a tier-3-only
+  // change (the common case) still hit the tier 1+2 cache, instead of
+  // invalidating everything on every request.
   const system = [{ type: "text", text: loadSystemPrompt(), cache_control: CACHE_CONTROL }];
 
-  const bibleContext = buildCampaignBibleContext({ campaignBible, beatsTracker, villainPlanTracker });
+  const bibleContext = buildCampaignBibleContext({ campaignBible, beatsTracker });
   if (bibleContext) {
     system.push({ type: "text", text: bibleContext, cache_control: CACHE_CONTROL });
   }

@@ -23,7 +23,7 @@ const CREATE_BIBLE_TOOL = {
     "Submit the finished Campaign Bible content once you have gathered enough lore/backstory context to ground it in this world. Call this exactly once, when ready - not before you've looked up what you need.",
   input_schema: {
     type: "object",
-    required: ["centralConflict", "secondaryNpcs", "beats", "villainPlan"],
+    required: ["centralConflict", "secondaryNpcs", "beats"],
     properties: {
       centralConflict: {
         type: "object",
@@ -72,26 +72,6 @@ const CREATE_BIBLE_TOOL = {
           },
         },
       },
-      villainPlan: {
-        type: "object",
-        required: ["goal", "steps"],
-        properties: {
-          goal: { type: "string", description: "One sentence, in the antagonist's own terms" },
-          steps: {
-            type: "array",
-            minItems: 3,
-            maxItems: 6,
-            items: {
-              type: "object",
-              required: ["step", "description"],
-              properties: {
-                step: { type: "integer", description: "Sequential, starting at 1" },
-                description: { type: "string" },
-              },
-            },
-          },
-        },
-      },
     },
   },
 };
@@ -118,11 +98,6 @@ function findMissingFields(input) {
     missing.push("beats (at least 3 entries)");
   } else if (input.beats.some((b) => !b.id || !b.title || !b.narrative)) {
     missing.push("beats (one or more entries missing id/title/narrative)");
-  }
-  if (!input?.villainPlan?.goal || !Array.isArray(input?.villainPlan?.steps) || input.villainPlan.steps.length < 3) {
-    missing.push("villainPlan (goal + at least 3 steps)");
-  } else if (input.villainPlan.steps.some((s) => s.step == null || !s.description)) {
-    missing.push("villainPlan.steps (one or more entries missing step/description)");
   }
   return missing;
 }
@@ -235,29 +210,24 @@ export function createCampaignBibleGenerator({ client, model, gameLabel, getMcpT
 
 // Builds the "session/state" cache tier (Phase 2, see specs/campaign-bible.md
 // §4) injected into generateReply's system prompt: the active beat's full
-// record and the villain plan's currently-underway step(s) + awareness level.
-// Only what's safe to reveal through play is included at all - pending beats,
-// pending steps, and the villain's overall goal are never passed in here, so
-// there's nothing spoiler-adjacent for the DM to even accidentally lean on.
+// record. Only what's safe to reveal through play is included at all -
+// pending beats are never passed in here, so there's nothing spoiler-adjacent
+// for the DM to even accidentally lean on.
 // Returns null if this Story has no Campaign Bible yet (nothing to inject).
-export function buildCampaignBibleContext({ campaignBible, beatsTracker, villainPlanTracker }) {
-  if (!campaignBible || !beatsTracker || !villainPlanTracker) return null;
+// (Villain's Plan intentionally omitted - deferred, see
+// specs/campaign-bible-villain-plan.md.)
+export function buildCampaignBibleContext({ campaignBible, beatsTracker }) {
+  if (!campaignBible || !beatsTracker) return null;
 
   const { centralConflict } = campaignBible;
   const activeBeat = beatsTracker.find((b) => b.status === "active");
-  const underwaySteps = villainPlanTracker.steps.filter((s) => s.status === "underway");
 
   const beatSection = activeBeat
     ? `## Current Beat: ${activeBeat.title}\n${activeBeat.narrative}`
     : "## Current Beat\nNone active - the arc has either not started or is exhausted.";
 
-  const villainSection =
-    underwaySteps.length > 0
-      ? `## Villain's Current Move(s)\nAwareness of players: ${villainPlanTracker.awarenessOfPlayers}\n${underwaySteps.map((s) => `- ${s.description}`).join("\n")}`
-      : `## Villain's Current Move(s)\nAwareness of players: ${villainPlanTracker.awarenessOfPlayers}\nNothing currently underway.`;
-
   return `# Hidden Campaign Context (Campaign Bible)
-This is a private planning document for your own use as GM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a beat, no describing the villain's plan or awareness level, no referencing "the campaign bible" or any tracker/status language at all. Let it silently steer what NPCs do, what complications arise, and what the world reveals - players should only ever experience its effects in the fiction, never see or infer its existence as a mechanism.
+This is a private planning document for your own use as GM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a beat, no referencing "the campaign bible" or any tracker/status language at all. Let it silently steer what NPCs do, what complications arise, and what the world reveals - players should only ever experience its effects in the fiction, never see or infer its existence as a mechanism.
 
 ## Central Conflict
 Type: ${centralConflict.type}
@@ -266,22 +236,15 @@ Motivation/Nature: ${centralConflict.motivationOrNature}
 Public Face: ${centralConflict.publicFace}
 Resources: ${centralConflict.resources}
 
-${beatSection}
-
-${villainSection}`;
+${beatSection}`;
 }
 
-// Builds the two mutable trackers from the freshly-generated (or admin-edited)
-// beats/villainPlan content, applying the fixed initial-status convention:
-// first beat active, first step underway, everything else pending.
-export function initializeTrackers({ beats, villainPlan }) {
+// Builds the mutable beats tracker from the freshly-generated (or admin-
+// edited) beats content, applying the fixed initial-status convention: first
+// beat active, everything else pending.
+// (Villain's Plan intentionally omitted - deferred, see
+// specs/campaign-bible-villain-plan.md.)
+export function initializeTrackers({ beats }) {
   const beatsTracker = beats.map((beat, i) => ({ ...beat, status: i === 0 ? "active" : "pending" }));
-
-  const villainPlanTracker = {
-    goal: villainPlan.goal,
-    awarenessOfPlayers: "unaware",
-    steps: villainPlan.steps.map((step, i) => ({ ...step, status: i === 0 ? "underway" : "pending" })),
-  };
-
-  return { beatsTracker, villainPlanTracker };
+  return { beatsTracker };
 }

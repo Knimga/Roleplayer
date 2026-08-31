@@ -35,39 +35,70 @@ departures from the original, decided before writing this doc:
    review UI edits those fields directly (per-section text, not one flat
    textarea) rather than re-parsing edited prose.
 
+## Villain's Plan Deferred
+
+The Villain's Plan (independent antagonist agency, adapting to player
+interference) has been pulled out of this spec entirely — generation,
+storage, injection, and UI all removed — and moved to its own dedicated
+doc: `specs/campaign-bible-villain-plan.md`. It surfaced a real, unsolved
+problem while planning Phase 3 (no grounded way to measure narrative time
+passing, which its "acts on its own timeline" design depends on) that
+deserves focused design attention on its own, not layered onto an
+unproven beats-only foundation. See that doc for the full problem
+writeup, the candidate solutions considered, and everything already
+drafted (prompt text preserved verbatim, not lost). Everything below now
+describes the beats-only feature as it actually stands.
+
 ## Phases
 
 - [x] **Phase 1 — Data model + creation flow.** Schema, the admin-triggered
   creation flow (campaign input → generate → review/edit → persist).
   Ship and validate generation reliability across several real runs
   before touching anything live. Implemented: `stories.campaignBible`/
-  `beatsTracker`/`villainPlanTracker` columns (both apps), `campaignBible.js`
-  (shared generator + `initializeTrackers`), the generate/approve/get routes
-  on `storiesRouter.js`, and `CampaignManagementModal.jsx`'s Generate tab +
-  the two read-only "danger zone" tabs (Bible Text, Beats & Villain Plan —
-  live tracker viewing, admin-only, red-styled per the spoiler risk).
+  `beatsTracker` columns (both apps; `villainPlanTracker` column also
+  exists but is unused — see "Villain's Plan Deferred" above),
+  `campaignBible.js` (shared generator + `initializeTrackers`), the
+  generate/approve/get routes on `storiesRouter.js`, and
+  `CampaignManagementModal.jsx`'s Generate tab + the two read-only
+  "danger zone" tabs (Bible Text, Beats — live tracker viewing,
+  admin-only, red-styled per the spoiler risk).
   One real bug hit and fixed during testing: `max_tokens: 4096` was too low
-  — a detailed Central Conflict + up to 4 NPCs + up to 5 beats routinely
-  consumed the whole budget before `villainPlan` (last in the schema) was
-  ever reached, so it silently came back `undefined` every time rather than
-  malformed — confirmed via `stop_reason: "max_tokens"` logging, not just
-  inferred. Fixed by raising `max_tokens` to 16000 (confirmed clean on the
-  first attempt after) and adding `findMissingFields` validation with a
-  retry-with-feedback loop as defense in depth, so a future truncation (or
-  any other incomplete tool call) can never again reach the frontend as
-  silently-broken data — it previously crashed `BibleDraftEditor` outright.
+  — a detailed Central Conflict + up to 4 NPCs + up to 5 beats (at the time,
+  a villainPlan field too, since removed) routinely consumed the whole
+  budget before the schema's last field was ever reached, so it silently
+  came back `undefined` every time rather than malformed — confirmed via
+  `stop_reason: "max_tokens"` logging, not just inferred. Fixed by raising
+  `max_tokens` to 16000 (confirmed clean on the first attempt after) and
+  adding `findMissingFields` validation with a retry-with-feedback loop as
+  defense in depth, so a future truncation (or any other incomplete tool
+  call) can never again reach the frontend as silently-broken data — it
+  previously crashed `BibleDraftEditor` outright.
 - [x] **Phase 2 — Per-request context injection + caching tiers.** Claude
-  *reads* current beat/villain-plan state every turn; nothing writes yet.
-  Isolates "does this change narration quality or cost" from "does
-  mutation logic work."
-- [ ] **Phase 3 — MCP write tools + update decision logic.** `update_beats`
-  / `update_villain_plan`, and the system-prompt/MCP-doc logic that
-  decides when to call them. Highest risk — a bad tool call now mutates
-  campaign state mid-session.
+  *reads* current beat state every turn; nothing writes yet. Isolates
+  "does this change narration quality or cost" from "does mutation logic
+  work."
+- [ ] **Phase 3 — MCP write tools + update decision logic.** `update_beats`,
+  and the system-prompt/MCP-doc logic that decides when to call it (draft
+  prompts already exist: `campaign-tracker-update-pass.md` +
+  `campaign-tracker-update-instructions.md`, both beats-only now).
+  Highest risk — a bad tool call now mutates campaign state mid-session.
+  Two design decisions made while planning this, before any code was
+  written: (1) run as a **separate dedicated pass** after narration is
+  drafted, not folded into the same tool-use loop as the narration call —
+  keeps the update-judgment task from competing for attention with
+  narration quality in one generation; (2) this pass and Phase 4's
+  leak-check pass are logically independent (both read the same drafted
+  response, neither needs the other's output) and should run **in
+  parallel**, not sequentially, to roughly halve the added per-turn
+  latency versus running them one after another. Neither pass needs the
+  full cached system-prompt/tool-definition tier the narration call
+  carries — just the drafted response plus whichever slice of state each
+  actually needs.
 - [ ] **Phase 4 — Leak-prevention pass.** Layered on last: depends on
   Phase 1's secret-fact data, and adds a second LLM call to every DM
   turn's latency/cost budget — worth measuring in isolation before it's
-  always-on.
+  always-on. See Phase 3's note above on running this in parallel with
+  the tracker-update pass, once both exist.
 
 ## 1. Purpose & Context
 
@@ -78,11 +109,13 @@ and the antagonist has no independent agency — it only reacts to what's
 immediately in front of it.
 
 The Campaign Bible is a hidden document generated once per Story,
-containing a central conflict, a rough narrative arc ("beats"),
-secondary NPC agendas, and an antagonist's own independent plan. It gives
-Claude durable context to draw on across an entire Story — including
-across separate conversations/chapters — without ever exposing that
-context to players, preserving in-fiction discovery.
+containing a central conflict, a rough narrative arc ("beats"), and
+secondary NPC agendas. It gives Claude durable context to draw on across
+an entire Story — including across separate conversations/chapters —
+without ever exposing that context to players, preserving in-fiction
+discovery. (An antagonist's own independent plan was part of the
+original design — see "Villain's Plan Deferred" above for why it's not
+part of this spec right now.)
 
 **Out of scope for this spec:** the literal wording of any system prompt
 addition or MCP doc. These are called out below by name/purpose only, as
@@ -106,11 +139,9 @@ piecemeal (§5.1) rather than as one document:
 - **Beats** — 3–5 entries, each: `Beat ID`, `Title`, `Narrative`
   (describes a state the story should reach, not a scripted trigger —
   intentionally non-prescriptive)
-- **Villain's Plan** — `Goal`, plus an ordered list of `Step` /
-  `Description` entries representing the antagonist's own initial moves
 
 This text is not edited during regular play. Mutable state lives only in
-the two trackers below.
+the tracker below.
 
 ### 2.2 Beats Tracker (mutable, structured)
 
@@ -139,33 +170,6 @@ One row/array entry per beat:
   completion condition is judged qualitatively against its `narrative`
   prose (a state to reach), not matched against a discrete string
 
-### 2.3 Villain Plan Tracker (mutable, structured)
-
-Single object per Story:
-
-```json
-{
-  "goal": "Complete a black-market cyberware shipment large enough to prove Ozuna's old division was worthless without him",
-  "awareness_of_players": "unaware",
-  "steps": [
-    { "step": 1, "description": "Secure a second depot floor to increase shipment capacity", "status": "complete" },
-    { "step": 2, "description": "Quietly re-route Militech manifests to disguise shipment volume", "status": "underway" }
-  ]
-}
-```
-
-- `awareness_of_players`: `unaware | suspects | aware | hunting`
-- `status`: `pending | underway | complete | disrupted`
-- `resolution` (optional) — populated on `disrupted`, describing what
-  players did
-- `adapted_from` (optional) — populated on a newly appended step,
-  pointing at the disrupted step it responds to
-- New steps always append at the next integer; existing step numbers are
-  never reordered or reused
-- `goal` is DB-only — never sent in per-request payloads (redundant with
-  Central Conflict's motivation/nature, and forward-looking/
-  spoiler-adjacent)
-
 ## 3. Bible Creation Flow (Phase 1)
 
 1. Admin clicks the ellipsis menu on an existing Story, then "Create
@@ -179,30 +183,27 @@ Single object per Story:
    generated Central Conflict, NPCs, and beats end up grounded in the
    actual world instead of generic placeholders.
 4. Claude generates the full Bible Text (§2.1) **and** the initial
-   trackers (§2.2, §2.3) in one call, via forced tool-use with a JSON
+   beats tracker (§2.2) in one call, via forced tool-use with a JSON
    schema (see Status point 2) — not free prose requiring a second parse
    step.
 5. **Admin review step**: the generated content is shown to the admin,
    editable per-section (Central Conflict fields, each NPC entry, each
-   beat's title/narrative, the villain's goal and each step) — same
-   review-before-create UX as `story-chapters.md`'s chapter-summary
-   modal. Canceling creates nothing at all.
-6. On approval: Bible Text + both trackers are persisted, associated
+   beat's title/narrative) — same review-before-create UX as
+   `story-chapters.md`'s chapter-summary modal. Canceling creates nothing
+   at all.
+6. On approval: Bible Text + the beats tracker are persisted, associated
    with the Story. Tracker defaults: `beat_1` → `active`, all other beats
-   → `pending`; step `1` → `underway`, all other steps → `pending`;
-   `awareness_of_players` → `unaware`.
-7. The active beat and current villain-plan step(s) become part of
-   standard per-request metadata for all future calls on this Story
-   (§4).
+   → `pending`.
+7. The active beat becomes part of standard per-request metadata for all
+   future calls on this Story (§4).
 
 ## 4. Per-Request Context Injection (Phase 2)
 
 **Implemented as**: `packages/server-core/src/campaignBible.js`'s
-`buildCampaignBibleContext({ campaignBible, beatsTracker, villainPlanTracker })`
-— returns `null` (no injection at all) if the Story has no Bible yet,
-otherwise a text block with Central Conflict + the active beat + only the
-`underway` step(s)/awareness level, prefixed with an explicit
-never-mention-this-to-players instruction. Wired into both apps'
+`buildCampaignBibleContext({ campaignBible, beatsTracker })` — returns
+`null` (no injection at all) if the Story has no Bible yet, otherwise a
+text block with Central Conflict + the active beat, prefixed with an
+explicit never-mention-this-to-players instruction. Wired into both apps'
 `generateReply` (new trailing params) and called from both `/respond` and
 `/new-chapter`'s intro-generation call site in `routes/conversations.js`.
 
@@ -225,10 +226,6 @@ states):
 - **Current beat**: `{id, title, narrative, status}` — the active beat's
   full record, narrative included. Safe to send every turn since it
   describes the *current* state of play, not a future spoiler.
-- **Current villain plan state**: `{awareness_of_players, active_steps}`
-  where `active_steps` is only the step(s) with `status: "underway"` —
-  `description` included inline (already short/spoiler-safe once
-  active), `pending` steps and `goal` withheld entirely.
 
 ### 4.2 Prompt Caching Strategy
 
@@ -240,9 +237,8 @@ monolithic cached block:
    instructions, continuity-check rules, output format rules. Identical
    across all Stories and requests.
 2. **Session/state tier** (cached, invalidated on actual change) —
-   Central Conflict, current beat `{id, title, narrative, status}`, and
-   villain plan `{active_steps, awareness_of_players}`. Only changes when
-   a session starts or when `update_beats`/`update_villain_plan` actually
+   Central Conflict and current beat `{id, title, narrative, status}`.
+   Only changes when a session starts or when `update_beats` actually
    fires — not on a fixed per-turn basis — so it stays cached across the
    (typically many) turns in between. ("Tone Guardrails," mentioned in
    the original third-party spec, was never actually part of the §2.1
@@ -277,17 +273,14 @@ server-core pieces.
 **`getBibleSection(section, id?)`**
 Fetches one named section of Bible Text — never the whole document.
 Valid sections: `central_conflict`, `npc:<name>`, `tone_guardrails`.
-(Beat narratives and villain-plan step descriptions are not fetched
-through this resource — they arrive via per-request metadata, §4.1.)
+(Beat narratives are not fetched through this resource — they arrive via
+per-request metadata, §4.1.)
 
 Claude-initiated fetch triggers *(system prompt — LLM instructions, out
 of scope; named here only)*:
 
 - **New conversation start** → fetch `central_conflict` +
   `tone_guardrails`, once, to reorient tone for a fresh session.
-- **Villain plan updated via a visible antagonist action** → fetch
-  `central_conflict`, to ground the reaction in who/what the antagonist
-  actually is rather than a generic escalation.
 - **Secondary NPC acting independently** → fetch that NPC's entry.
 
 ### 5.2 MCP Tools (write)
@@ -298,28 +291,20 @@ Marks the current beat `complete` and advances the next beat to
 status}` (narrative joined server-side from Bible Text) so the app can
 attach it to future request metadata without a separate fetch.
 
-**`update_villain_plan`**
-Handles: marking a step `disrupted` (+ `resolution`), marking a step
-`complete`, appending a new adapted step (+ `adapted_from`), and/or
-advancing `awareness_of_players`. Returns updated `active_steps` +
-`awareness_of_players` for the app to attach going forward.
-
-These are two separate tools (not merged) so bible-text edits, beat
-updates, and villain-plan updates stay independently auditable. Both can
-be called in the same turn if both conditions fire in one response — no
-combined tool needed for that case.
+Draft prompts already exist for this — `packages/server-core/prompts/
+campaign-tracker-update-pass.md` (the decision of *whether* to call it)
+and `campaign-tracker-update-instructions.md` (the procedure for *how* to
+fill it in) — written as their own dedicated pass, not folded into the
+narration call's tool-use loop. Not yet wired into any code.
 
 ### 5.3 Update decision logic
 
-- **System prompt** *(LLM instructions — out of scope)*: cheap
-  true/false checks run every response — did the active beat's implied
-  state get reached; did players interfere with the underway
-  villain-plan step; did time pass without interference; did the
-  antagonist learn something new about the players.
-- **MCP doc** *(LLM instructions — out of scope)*: once a check fires,
-  this doc details exactly how to fill in the corresponding tool call —
-  what counts as a full vs. partial trigger, when to adapt vs. simply
-  mark disrupted, how far to advance awareness.
+- **System prompt** *(drafted — `campaign-tracker-update-pass.md`)*:
+  cheap true/false check run every response — did the active beat's
+  implied state get reached.
+- **MCP doc** *(drafted — `campaign-tracker-update-instructions.md`)*:
+  once the check fires, governs exactly how to fill in the resulting
+  `update_beats` call.
 
 ## 6. Leak Prevention Pass (Phase 4)
 
@@ -335,8 +320,8 @@ After the DM response is drafted:
    highlighted, request a rewrite, then re-run the check.
 4. If no: response is released to players as-is.
 
-Models: Haiku as default, switch to Sonnet if beat or villain plan was
-updated this turn.
+Models: Haiku as default, switch to Sonnet if a beat was updated this
+turn.
 
 ## Open Questions
 
@@ -352,7 +337,7 @@ updated this turn.
   list — not yet designed in detail.
 - **Review-step UI granularity**: §3.5 says per-section editable fields,
   not one flat textarea — exact modal layout (one big form vs. several
-  smaller per-entity modals for NPCs/beats/steps) not yet designed.
+  smaller per-entity modals for NPCs/beats) not yet designed.
 - **Admin/dev visibility**: DB-level access by the developer is a soft
   boundary, not a hard one — worth a one-line note in any internal
   documentation of this feature, not a design change.

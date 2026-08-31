@@ -60,24 +60,26 @@ export function createStoriesRouter(db, stories, { generateCampaignBible } = {})
   });
 
   // Persists the (possibly admin-edited) generated content and initializes
-  // both mutable trackers. This is the only write path for campaignBible -
-  // it's immutable narrative content from here on; beatsTracker/
-  // villainPlanTracker are what change during play (Phase 3).
+  // the mutable beats tracker. This is the only write path for
+  // campaignBible - it's immutable narrative content from here on;
+  // beatsTracker is what changes during play (Phase 3). (Villain's Plan
+  // intentionally not generated/persisted - deferred, see
+  // specs/campaign-bible-villain-plan.md.)
   router.post("/:id/campaign-bible/approve", async (req, res) => {
     if (!req.user.isAdmin) {
       return res.status(403).json({ error: "Only the admin can manage the Campaign Bible" });
     }
-    const { campaignInput, centralConflict, secondaryNpcs, beats, villainPlan } = req.body ?? {};
-    if (!campaignInput || !centralConflict || !secondaryNpcs || !beats || !villainPlan) {
+    const { campaignInput, centralConflict, secondaryNpcs, beats } = req.body ?? {};
+    if (!campaignInput || !centralConflict || !secondaryNpcs || !beats) {
       return res.status(400).json({ error: "Incomplete Campaign Bible content" });
     }
 
-    const { beatsTracker, villainPlanTracker } = initializeTrackers({ beats, villainPlan });
+    const { beatsTracker } = initializeTrackers({ beats });
     const campaignBible = { campaignInput, centralConflict, secondaryNpcs };
 
     const [updated] = await db
       .update(stories)
-      .set({ campaignBible, beatsTracker, villainPlanTracker })
+      .set({ campaignBible, beatsTracker })
       .where(eq(stories.id, req.params.id))
       .returning();
 
@@ -87,13 +89,12 @@ export function createStoriesRouter(db, stories, { generateCampaignBible } = {})
     res.json({
       campaignBible: updated.campaignBible,
       beatsTracker: updated.beatsTracker,
-      villainPlanTracker: updated.villainPlanTracker,
     });
   });
 
-  // Read-only fetch for the admin-only viewing tabs (Bible Text, Beats &
-  // Villain Plan) - lets the admin watch live tracker status while the
-  // feature is new, independent of the generate/approve creation flow.
+  // Read-only fetch for the admin-only viewing tabs (Bible Text, Beats) -
+  // lets the admin watch live tracker status while the feature is new,
+  // independent of the generate/approve creation flow.
   router.get("/:id/campaign-bible", async (req, res) => {
     if (!req.user.isAdmin) {
       return res.status(403).json({ error: "Only the admin can manage the Campaign Bible" });
@@ -103,7 +104,6 @@ export function createStoriesRouter(db, stories, { generateCampaignBible } = {})
       .select({
         campaignBible: stories.campaignBible,
         beatsTracker: stories.beatsTracker,
-        villainPlanTracker: stories.villainPlanTracker,
       })
       .from(stories)
       .where(eq(stories.id, req.params.id));

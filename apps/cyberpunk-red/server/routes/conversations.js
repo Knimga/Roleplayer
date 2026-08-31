@@ -693,7 +693,6 @@ router.post("/:id/new-chapter", async (req, res) => {
       name: stories.name,
       campaignBible: stories.campaignBible,
       beatsTracker: stories.beatsTracker,
-      villainPlanTracker: stories.villainPlanTracker,
     })
     .from(stories)
     .where(eq(stories.id, conversation.storyId));
@@ -763,7 +762,6 @@ router.post("/:id/new-chapter", async (req, res) => {
         undefined,
         story?.campaignBible ?? null,
         story?.beatsTracker ?? null,
-        story?.villainPlanTracker ?? null,
       );
 
       const [intro] = await db
@@ -910,7 +908,6 @@ router.post("/:id/respond", async (req, res) => {
       storyName: stories.name,
       campaignBible: stories.campaignBible,
       beatsTracker: stories.beatsTracker,
-      villainPlanTracker: stories.villainPlanTracker,
     })
     .from(conversations)
     .leftJoin(stories, eq(conversations.storyId, stories.id))
@@ -952,7 +949,6 @@ router.post("/:id/respond", async (req, res) => {
       conversation?.characterHp ?? null,
       conversation?.campaignBible ?? null,
       conversation?.beatsTracker ?? null,
-      conversation?.villainPlanTracker ?? null,
     );
 
     const [saved] = await db
