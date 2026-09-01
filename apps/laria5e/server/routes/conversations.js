@@ -5,7 +5,8 @@ import { conversations, messages, stories } from "../db/schema.js";
 import { requireAuth } from "@roleplayer/server-core/requireAuth.js";
 import { users } from "@roleplayer/server-core/users.js";
 import { subscribe, publish } from "@roleplayer/server-core/broadcaster.js";
-import { generateReply, generateChapterSummary } from "../lib/claude.js";
+import { generateReply, generateChapterSummary, runTrackerUpdatePass } from "../lib/claude.js";
+import { advanceBeatsTracker } from "@roleplayer/server-core/campaignBible.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply, formatNewChapter } from "../lib/discordNotify.js";
 import { rollD20Check, rollDamage, formatModifier } from "../../mcp/dice.js";
 
@@ -808,6 +809,13 @@ router.post("/:id/new-chapter", async (req, res) => {
         story?.beatsTracker ?? null,
       );
 
+      await maybeAdvanceBeat({
+        storyId: conversation.storyId,
+        beatsTracker: story?.beatsTracker,
+        history: [recap, kickoff],
+        replyText: introText,
+      });
+
       const [intro] = await db
         .insert(messages)
         .values({
@@ -967,6 +975,32 @@ router.delete("/:id/messages/:messageId", async (req, res) => {
   res.status(204).end();
 });
 
+// Runs the tracker-update pass after narration is drafted, before it's
+// saved/published (specs/campaign-bible.md's Phase 3 decision (2) -
+// deliberately blocks, so the very next turn already sees updated beat
+// state rather than lagging a turn behind). No-op if the story has no
+// active beat (no Bible yet, or the arc is exhausted). Failures are logged
+// and swallowed, not thrown - a tracker-update problem shouldn't break the
+// player's turn.
+async function maybeAdvanceBeat({ storyId, beatsTracker, history, replyText }) {
+  if (!storyId || !beatsTracker) return;
+  const activeBeat = beatsTracker.find((b) => b.status === "active");
+  if (!activeBeat) return;
+
+  try {
+    // Last 20 total, most recent (the just-drafted reply, not yet
+    // persisted) last - see campaign-tracker-update-pass.md's Inputs.
+    const recentHistory = [...history.slice(-19), { role: "assistant", sender: "DM", content: replyText }];
+    const update = await runTrackerUpdatePass({ recentHistory, activeBeat });
+    if (!update) return;
+
+    const newBeatsTracker = advanceBeatsTracker(beatsTracker);
+    await db.update(stories).set({ beatsTracker: newBeatsTracker }).where(eq(stories.id, storyId));
+  } catch (err) {
+    console.error("Tracker-update pass failed (beat not advanced this turn):", err);
+  }
+}
+
 router.post("/:id/respond", async (req, res) => {
   const conversationId = req.params.id;
 
@@ -1025,6 +1059,13 @@ router.post("/:id/respond", async (req, res) => {
       conversation?.campaignBible ?? null,
       conversation?.beatsTracker ?? null,
     );
+
+    await maybeAdvanceBeat({
+      storyId: conversation?.storyId,
+      beatsTracker: conversation?.beatsTracker,
+      history,
+      replyText,
+    });
 
     const [saved] = await db
       .insert(messages)

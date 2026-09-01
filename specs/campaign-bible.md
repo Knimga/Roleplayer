@@ -2,7 +2,7 @@
 
 ## Status
 
-Phases 1-2 implemented (see Phases below for what that covers and what's
+Phases 1-3 implemented (see Phases below for what that covers and what's
 still pending). This doc is the working reference for the whole build;
 update each phase's status as work lands rather than treating this as a
 fire-and-forget plan.
@@ -77,7 +77,7 @@ describes the beats-only feature as it actually stands.
   *reads* current beat state every turn; nothing writes yet. Isolates
   "does this change narration quality or cost" from "does mutation logic
   work."
-- [ ] **Phase 3 — MCP write tools + update decision logic.** `update_beats`,
+- [x] **Phase 3 — MCP write tools + update decision logic.** `update_beats`,
   and the system-prompt/MCP-doc logic that decides when to call it (draft
   prompts already exist: `campaign-tracker-update-pass.md` +
   `campaign-tracker-update-instructions.md`, both beats-only now).
@@ -133,9 +133,40 @@ describes the beats-only feature as it actually stands.
   actually needed, not preemptively. `campaign-tracker-update-pass.md`
   describes the windowing concept and the chapter-boundary caveat below,
   but deliberately doesn't state the exact count — that's a call-site
-  config value (not yet implemented; Phase 3 hasn't been built), tunable
-  without touching the prompt. This doc is the one place the current
+  config value, tunable without touching the prompt (the `20`/`19` in
+  `maybeAdvanceBeat`, below). This doc is the one place the current
   actual number is recorded.
+
+  **Implemented as**: `packages/server-core/src/campaignTrackerUpdate.js`'s
+  `createTrackerUpdatePass({ client, model })` — one plain (unforced,
+  `tool_choice: "auto"`) API call per turn with the `update_beats` tool
+  available; "no tool call at all" is the expected common outcome, not a
+  failure to retry against (unlike Bible creation, there's no
+  `findMissingFields`-style validation loop here — nothing to validate
+  when the response is legitimately empty). `update_beats` takes one
+  required `reason` string (logged server-side for admin review via the
+  Beats tab, never shown to players) — its only real effect is fixed and
+  mechanical: `campaignBible.js`'s `advanceBeatsTracker` marks the
+  current active beat `complete` and the next `pending` beat `active`,
+  a pure function the caller persists. Wired into both apps'
+  `routes/conversations.js` via a local `maybeAdvanceBeat` helper, called
+  from both `/respond` and `/new-chapter`'s intro-generation site,
+  *before* the narration message is saved/published (blocking, per
+  decision (2) above) — no-ops immediately (no API call at all) if the
+  Story has no active beat. Wrapped in try/catch: a tracker-update
+  failure is logged and swallowed, never breaks the player's turn.
+  `campaign-tracker-update-instructions.md` ended up not wired into the
+  running code at all — once villain-plan was removed, its remaining
+  content (advance at most one beat per pass) was already fully covered
+  by `campaign-tracker-update-pass.md`'s own Output contract, so loading
+  a second doc for zero additional guidance wasn't worth doing. Left in
+  the repo as historical/reference material, not deleted.
+  Verified with a real end-to-end test against the live API: a scenario
+  with clear, undeniable in-fiction proof correctly called `update_beats`
+  with a sensible reason; an unrelated side-content scenario correctly
+  produced no tool call; a no-active-beat case correctly short-circuited
+  before ever calling the API; `advanceBeatsTracker` verified directly
+  for both a mid-tracker advance and a last-beat-in-the-arc case.
 
   **Chapter-boundary caveat, not yet resolved**: this window can't span
   a chapter boundary — starting a new chapter (`story-chapters.md`)

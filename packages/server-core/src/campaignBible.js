@@ -248,3 +248,22 @@ export function initializeTrackers({ beats }) {
   const beatsTracker = beats.map((beat, i) => ({ ...beat, status: i === 0 ? "active" : "pending" }));
   return { beatsTracker };
 }
+
+// Applies the one and only effect update_beats has (Phase 3, see
+// campaignTrackerUpdate.js): marks the current active beat complete and the
+// next beat in sequence active. Pure function, no DB access - the caller
+// persists the result. Returns the tracker unchanged if there's no active
+// beat (arc already exhausted, or somehow already advanced) or no next beat
+// to advance to (arc genuinely exhausted - the tracker just stays with
+// nothing active, same as the "arc exhausted" case buildCampaignBibleContext
+// already handles).
+export function advanceBeatsTracker(beatsTracker) {
+  const activeIndex = beatsTracker.findIndex((b) => b.status === "active");
+  if (activeIndex === -1) return beatsTracker;
+
+  return beatsTracker.map((beat, i) => {
+    if (i === activeIndex) return { ...beat, status: "complete" };
+    if (i === activeIndex + 1) return { ...beat, status: "active" };
+    return beat;
+  });
+}

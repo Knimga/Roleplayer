@@ -5,6 +5,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { users } from "@roleplayer/server-core/users.js";
 import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
 import { createCampaignBibleGenerator, buildCampaignBibleContext } from "@roleplayer/server-core/campaignBible.js";
+import { createTrackerUpdatePass } from "@roleplayer/server-core/campaignTrackerUpdate.js";
 import { loadDmSystemPromptCore } from "@roleplayer/server-core/dmSystemPromptCore.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
@@ -198,6 +199,8 @@ export const generateCampaignBible = createCampaignBibleGenerator({
   getMcpTools,
   callMcpTool,
 });
+
+export const runTrackerUpdatePass = createTrackerUpdatePass({ client, model: MODEL });
 
 // The Anthropic API requires strictly alternating user/assistant turns, but
 // both players share role "user" — merge consecutive same-role DB rows into
