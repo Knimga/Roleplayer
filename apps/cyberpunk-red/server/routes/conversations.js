@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { eq, asc, desc, count, and, gt, ne } from "drizzle-orm";
+import { eq, asc, desc, count, and, gt, ne, sql } from "drizzle-orm";
 import { db } from "../lib/db.js";
 import { conversations, messages, stories } from "../db/schema.js";
 import { requireAuth } from "@roleplayer/server-core/requireAuth.js";
 import { users } from "@roleplayer/server-core/users.js";
 import { subscribe, publish } from "@roleplayer/server-core/broadcaster.js";
-import { generateReply, generateChapterSummary, runTrackerUpdatePass } from "../lib/claude.js";
+import { generateReply, generateChapterSummary, runTrackerUpdatePass, runLeakCheckPass } from "../lib/claude.js";
 import { advanceBeatsTracker } from "@roleplayer/server-core/campaignBible.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply, formatNewChapter } from "../lib/discordNotify.js";
 import { rollSkillCheck, rollGeneric, formatModifier, formatDiceBreakdown } from "../../mcp/dice.js";
@@ -202,7 +202,20 @@ router.get("/", async (req, res) => {
     .from(conversations)
     .leftJoin(stories, eq(conversations.storyId, stories.id))
     .orderBy(desc(conversations.lastMessageAt));
-  res.json(rows);
+
+  // Separate aggregate rather than joining messages onto the select above -
+  // that select already carries several jsonb columns, and joining messages
+  // in would force a GROUP BY across all of them just to aggregate one
+  // number. Powers the chapter cost-indicator dot (LeftPanel.jsx) - only
+  // matters for Story chapters, but cheap enough to compute for every
+  // conversation rather than special-casing which ones need it.
+  const totals = await db
+    .select({ conversationId: messages.conversationId, totalChars: sql`sum(length(${messages.content}))`.mapWith(Number) })
+    .from(messages)
+    .groupBy(messages.conversationId);
+  const totalCharsById = new Map(totals.map((t) => [t.conversationId, t.totalChars]));
+
+  res.json(rows.map((r) => ({ ...r, totalChars: totalCharsById.get(r.id) ?? 0 })));
 });
 
 router.post("/", async (req, res) => {
@@ -765,12 +778,15 @@ router.post("/:id/new-chapter", async (req, res) => {
         story?.beatsTracker ?? null,
       );
 
-      await maybeAdvanceBeat({
-        storyId: conversation.storyId,
-        beatsTracker: story?.beatsTracker,
-        history: [recap, kickoff],
-        replyText: introText,
-      });
+      await Promise.all([
+        maybeAdvanceBeat({
+          storyId: conversation.storyId,
+          beatsTracker: story?.beatsTracker,
+          history: [recap, kickoff],
+          replyText: introText,
+        }),
+        maybeCheckLeak({ beatsTracker: story?.beatsTracker, replyText: introText }),
+      ]);
 
       const [intro] = await db
         .insert(messages)
@@ -926,6 +942,27 @@ async function maybeAdvanceBeat({ storyId, beatsTracker, history, replyText }) {
   }
 }
 
+// Runs alongside maybeAdvanceBeat (Promise.all at both call sites) - the two
+// passes are independent judgments over the same drafted response, so there's
+// no reason to make one wait on the other. Checks the response in isolation
+// against only the active beat's own content (no history, no Central
+// Conflict, no villain plan - see specs/campaign-bible.md §6). Detection
+// only for now: a leak is logged for visibility, not auto-rewritten - the
+// rewrite/retry mechanism is still an open design question (see Open
+// Questions in the spec), and shipping detection first lets that be designed
+// against real signal instead of guessed at.
+async function maybeCheckLeak({ beatsTracker, replyText }) {
+  if (!beatsTracker) return;
+  const activeBeat = beatsTracker.find((b) => b.status === "active");
+  if (!activeBeat) return;
+
+  try {
+    await runLeakCheckPass({ replyText, activeBeat });
+  } catch (err) {
+    console.error("Leak-check pass failed (skipped this turn):", err);
+  }
+}
+
 router.post("/:id/respond", async (req, res) => {
   const conversationId = req.params.id;
 
@@ -985,12 +1022,15 @@ router.post("/:id/respond", async (req, res) => {
       conversation?.beatsTracker ?? null,
     );
 
-    await maybeAdvanceBeat({
-      storyId: conversation?.storyId,
-      beatsTracker: conversation?.beatsTracker,
-      history,
-      replyText,
-    });
+    await Promise.all([
+      maybeAdvanceBeat({
+        storyId: conversation?.storyId,
+        beatsTracker: conversation?.beatsTracker,
+        history,
+        replyText,
+      }),
+      maybeCheckLeak({ beatsTracker: conversation?.beatsTracker, replyText }),
+    ]);
 
     const [saved] = await db
       .insert(messages)

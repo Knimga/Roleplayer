@@ -183,6 +183,34 @@
   white-space: nowrap;
 }
 
+#sidebar .chapter-name-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: normal;
+}
+
+.chapter-name-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-cost-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.chapter-row:hover .chapter-cost-dot {
+  opacity: 1;
+}
+
 #sidebar .rename-input {
   flex: 1;
   min-width: 0;

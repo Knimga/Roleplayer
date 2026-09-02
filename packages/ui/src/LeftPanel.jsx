@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { renameConversation, deleteConversation } from "@roleplayer/core/api/conversations.js";
 import { renameStory } from "@roleplayer/core/api/stories.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
+import { getChapterCostPercent, getChapterCostColor } from "./chapterCostIndicator.js";
 import NewChapterModal from "./NewChapterModal.jsx";
 import SettingsModal from "./SettingsModal.jsx";
 import CampaignManagementModal from "./CampaignManagementModal.jsx";
@@ -194,10 +195,20 @@ export default function LeftPanel({
               <ul className="chapter-list">
                 {item.chapters.map((c) => {
                   const isActiveChapter = c.id === activeChapter.id;
+                  const costPercent = getChapterCostPercent(c.totalChars);
                   return (
                     <li key={c.id} className={"chapter-row" + (c.id === selectedConversationId ? " selected" : "")}>
-                      <button type="button" className="conversation-name" onClick={() => onSelect(c.id)}>
-                        {c.name}
+                      <button
+                        type="button"
+                        className="conversation-name chapter-name-button"
+                        onClick={() => onSelect(c.id)}
+                      >
+                        <span className="chapter-name-text">{c.name}</span>
+                        <span
+                          className="chapter-cost-dot"
+                          style={{ backgroundColor: getChapterCostColor(costPercent) }}
+                          title={`${costPercent}% to high-cost`}
+                        />
                       </button>
 
                       {isActiveChapter && isAdmin && (

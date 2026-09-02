@@ -6,6 +6,7 @@ import { users } from "@roleplayer/server-core/users.js";
 import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
 import { createCampaignBibleGenerator, buildCampaignBibleContext } from "@roleplayer/server-core/campaignBible.js";
 import { createTrackerUpdatePass } from "@roleplayer/server-core/campaignTrackerUpdate.js";
+import { createLeakCheckPass } from "@roleplayer/server-core/leakCheck.js";
 import { loadDmSystemPromptCore } from "@roleplayer/server-core/dmSystemPromptCore.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
 
@@ -18,6 +19,13 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =
   process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
+// Cheap and fast on purpose - shared by the tracker-update and leak-check
+// passes, both bounded true/false-style judgments (see
+// campaign-tracker-update-pass.md / leak-check-pass.md), not narration or
+// open-ended reasoning. Tracker-update originally ran on MODEL - switched
+// here after real usage showed that was adding a full Sonnet/Opus-tier call
+// to every single DM turn just to re-read a 20-message window.
+const REVIEW_PASS_MODEL = process.env.ANTHROPIC_REVIEW_PASS_MODEL || "claude-haiku-4-5-20251001";
 const TONE_PROMPT_PATH = fileURLToPath(new URL("../config/laria-system-prompt.md", import.meta.url));
 const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/laria-reference-files.md", import.meta.url));
 
@@ -200,7 +208,9 @@ export const generateCampaignBible = createCampaignBibleGenerator({
   callMcpTool,
 });
 
-export const runTrackerUpdatePass = createTrackerUpdatePass({ client, model: MODEL });
+export const runTrackerUpdatePass = createTrackerUpdatePass({ client, model: REVIEW_PASS_MODEL });
+
+export const runLeakCheckPass = createLeakCheckPass({ client, model: REVIEW_PASS_MODEL });
 
 // The Anthropic API requires strictly alternating user/assistant turns, but
 // both players share role "user" — merge consecutive same-role DB rows into
