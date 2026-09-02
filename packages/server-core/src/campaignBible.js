@@ -23,7 +23,7 @@ const CREATE_BIBLE_TOOL = {
     "Submit the finished Campaign Bible content once you have gathered enough lore/backstory context to ground it in this world. Call this exactly once, when ready - not before you've looked up what you need.",
   input_schema: {
     type: "object",
-    required: ["centralConflict", "secondaryNpcs", "beats"],
+    required: ["centralConflict", "beats"],
     properties: {
       centralConflict: {
         type: "object",
@@ -34,24 +34,6 @@ const CREATE_BIBLE_TOOL = {
           motivationOrNature: { type: "string", description: "What drives it, or what it fundamentally is" },
           publicFace: { type: "string", description: "What's visible to the world vs. what's hidden from it" },
           resources: { type: "string", description: "What it can bring to bear against the players" },
-        },
-      },
-      secondaryNpcs: {
-        type: "array",
-        minItems: 2,
-        maxItems: 4,
-        items: {
-          type: "object",
-          required: ["name", "wants", "knowsOrDoesntKnow", "reactionIfPlayersGetClose"],
-          properties: {
-            name: { type: "string" },
-            wants: { type: "string", description: "Their own goal, independent of the players' actions" },
-            knowsOrDoesntKnow: {
-              type: "string",
-              description: "What they know/don't know about the central conflict",
-            },
-            reactionIfPlayersGetClose: { type: "string" },
-          },
         },
       },
       beats: {
@@ -88,11 +70,6 @@ function findMissingFields(input) {
   const cc = input?.centralConflict;
   if (!cc || !cc.type || !cc.identity || !cc.motivationOrNature || !cc.publicFace || !cc.resources) {
     missing.push("centralConflict (type/identity/motivationOrNature/publicFace/resources)");
-  }
-  if (!Array.isArray(input?.secondaryNpcs) || input.secondaryNpcs.length < 2) {
-    missing.push("secondaryNpcs (at least 2 entries)");
-  } else if (input.secondaryNpcs.some((n) => !n.name || !n.wants || !n.knowsOrDoesntKnow || !n.reactionIfPlayersGetClose)) {
-    missing.push("secondaryNpcs (one or more entries missing a required field)");
   }
   if (!Array.isArray(input?.beats) || input.beats.length < 3) {
     missing.push("beats (at least 3 entries)");
@@ -215,7 +192,7 @@ export function createCampaignBibleGenerator({ client, model, gameLabel, getMcpT
 // for the DM to even accidentally lean on.
 // Returns null if this Story has no Campaign Bible yet (nothing to inject).
 // (Villain's Plan intentionally omitted - deferred, see
-// specs/campaign-bible-villain-plan.md.)
+// specs/future-features/campaign-bible-villain-plan.md.)
 export function buildCampaignBibleContext({ campaignBible, beatsTracker }) {
   if (!campaignBible || !beatsTracker) return null;
 
@@ -243,7 +220,7 @@ ${beatSection}`;
 // edited) beats content, applying the fixed initial-status convention: first
 // beat active, everything else pending.
 // (Villain's Plan intentionally omitted - deferred, see
-// specs/campaign-bible-villain-plan.md.)
+// specs/future-features/campaign-bible-villain-plan.md.)
 export function initializeTrackers({ beats }) {
   const beatsTracker = beats.map((beat, i) => ({ ...beat, status: i === 0 ? "active" : "pending" }));
   return { beatsTracker };

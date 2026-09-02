@@ -64,18 +64,18 @@ export function createStoriesRouter(db, stories, { generateCampaignBible } = {})
   // campaignBible - it's immutable narrative content from here on;
   // beatsTracker is what changes during play (Phase 3). (Villain's Plan
   // intentionally not generated/persisted - deferred, see
-  // specs/campaign-bible-villain-plan.md.)
+  // specs/future-features/campaign-bible-villain-plan.md.)
   router.post("/:id/campaign-bible/approve", async (req, res) => {
     if (!req.user.isAdmin) {
       return res.status(403).json({ error: "Only the admin can manage the Campaign Bible" });
     }
-    const { campaignInput, centralConflict, secondaryNpcs, beats } = req.body ?? {};
-    if (!campaignInput || !centralConflict || !secondaryNpcs || !beats) {
+    const { campaignInput, centralConflict, beats } = req.body ?? {};
+    if (!campaignInput || !centralConflict || !beats) {
       return res.status(400).json({ error: "Incomplete Campaign Bible content" });
     }
 
     const { beatsTracker } = initializeTrackers({ beats });
-    const campaignBible = { campaignInput, centralConflict, secondaryNpcs };
+    const campaignBible = { campaignInput, centralConflict };
 
     const [updated] = await db
       .update(stories)

@@ -2,10 +2,11 @@
 
 ## Status
 
-Phases 1-3 implemented (see Phases below for what that covers and what's
-still pending). This doc is the working reference for the whole build;
-update each phase's status as work lands rather than treating this as a
-fire-and-forget plan.
+Phases 1-3 implemented; Phase 4 implemented in a deliberately narrowed
+first form — detection only, checking only the active beat's own content
+(see Phases below for what that covers and what's still pending). This
+doc is the working reference for the whole build; update each phase's
+status as work lands rather than treating this as a fire-and-forget plan.
 
 Adapted from an external third-party technical spec (kept at the user's
 Desktop as the original source of truth for the underlying idea) — that
@@ -40,7 +41,7 @@ departures from the original, decided before writing this doc:
 The Villain's Plan (independent antagonist agency, adapting to player
 interference) has been pulled out of this spec entirely — generation,
 storage, injection, and UI all removed — and moved to its own dedicated
-doc: `specs/campaign-bible-villain-plan.md`. It surfaced a real, unsolved
+doc: `specs/future-features/campaign-bible-villain-plan.md`. It surfaced a real, unsolved
 problem while planning Phase 3 (no grounded way to measure narrative time
 passing, which its "acts on its own timeline" design depends on) that
 deserves focused design attention on its own, not layered onto an
@@ -48,6 +49,23 @@ unproven beats-only foundation. See that doc for the full problem
 writeup, the candidate solutions considered, and everything already
 drafted (prompt text preserved verbatim, not lost). Everything below now
 describes the beats-only feature as it actually stands.
+
+## Secondary NPC Agendas Deferred
+
+Secondary NPC Agendas (2-4 NPCs connected to the Central Conflict, each
+with their own goal/knowledge/reaction) have also been pulled out
+entirely — generation, storage, and admin review UI all removed — moved
+to its own dedicated doc: `specs/future-features/
+campaign-bible-secondary-npcs.md`. Unlike Villain's Plan, this wasn't a
+build-then-revert: these NPCs were generated and admin-reviewable but
+never actually wired into gameplay in the first place (nothing ever read
+them back into a prompt), so removing them doesn't change any actual
+play behavior. Surfaced by a real, unaddressed gap in the original
+design itself — an on-demand fetch mechanism that presupposes Claude
+already knows an NPC exists, with no mechanism ever proposed for how
+Claude would learn that in the first place. See that doc for the full
+writeup and the sketched (not built) fix. Everything below now describes
+the feature with NPCs fully out of scope too.
 
 ## Phases
 
@@ -143,7 +161,36 @@ describes the beats-only feature as it actually stands.
   available; "no tool call at all" is the expected common outcome, not a
   failure to retry against (unlike Bible creation, there's no
   `findMissingFields`-style validation loop here — nothing to validate
-  when the response is legitimately empty). `update_beats` takes one
+  when the response is legitimately empty).
+
+  **Model, revised after Phase 4 shipped**: originally bound to `MODEL`
+  (Sonnet-dev/Opus-prod, same as narration) — moved to the same
+  `REVIEW_PASS_MODEL` constant as the leak-check pass (always Haiku, see
+  §6/Phase 4 above) once real usage made it clear that was adding a full
+  Sonnet/Opus-tier call to every single DM turn just to re-read a
+  20-message window and judge one true/false-shaped question (advance or
+  don't, plus a one-sentence reason) — not meaningfully harder than the
+  leak-check judgment Haiku already handles. Considered (and set aside for
+  now) building a cheaper-by-design alternative first: a persisted,
+  chapter-scoped plot-summary bullet log, regenerated every 4 DM
+  responses instead of every 1, with beat-advancement judged against the
+  compressed bullets instead of raw messages. That idea has real merit
+  independent of cost — it would also fix the chapter-boundary window
+  reset and the compound/cumulative-fact-beat gap noted above — but
+  trades away decision (2)'s "advance as soon as possible" bias (a
+  4-response check cadence means players could see 1-3 replies narrated
+  against an already-satisfied beat) and reintroduces the lossy-
+  compression risk villain-plan's time-buckets were declined over: the
+  advancement judgment would only ever see a cheap model's bullet
+  summary, never the DM's actual words. Tried the free lever (Haiku swap)
+  first since it's reversible and required no new persisted state;
+  revisit the bullet-log design only if Haiku's judgment quality or
+  latency/cost at this window size proves insufficient in practice.
+  Re-verified end-to-end against the live API on Haiku specifically (not
+  assumed from the leak-check pass's own verification) with the same
+  shape of scenarios as the original test below — both passed.
+
+  `update_beats` takes one
   required `reason` string (logged server-side for admin review via the
   Beats tab, never shown to players) — its only real effect is fixed and
   mechanical: `campaignBible.js`'s `advanceBeatsTracker` marks the
@@ -193,11 +240,65 @@ describes the beats-only feature as it actually stands.
   judgment reads — real cost for a problem only hypothetical so far.
   Revisit only if real play shows the window approach actually failing,
   not preemptively.
-- [ ] **Phase 4 — Leak-prevention pass.** Layered on last: depends on
-  Phase 1's secret-fact data, and adds a second LLM call to every DM
-  turn's latency/cost budget — worth measuring in isolation before it's
-  always-on. See Phase 3's note above on running this in parallel with
-  the tracker-update pass, once both exist.
+- [x] **Phase 4 — Leak-prevention pass (narrowed first form).** Real,
+  concrete motivation for this, not just the original spec's abstract
+  worry: inspecting actual test-generated Bibles surfaced a beat whose
+  `narrative` text named an antagonist ("Reiko Ishida") directly — proof
+  that active-beat text, sitting in every turn's injected context (Phase
+  2), can itself be a live spoiler, not just Central Conflict facts as
+  the original framing assumed. Built narrower than §6 below originally
+  specified: **detection only** (no automatic rewrite loop yet — see Open
+  Questions), and checks the drafted response **in isolation against only
+  the active beat's own narrative** — no Central Conflict identity/
+  motivation, no villain plan (still deferred, see above). Shipping the
+  narrowest, best-understood risk first and expanding once it's proven
+  in real play, same discipline as every other phase here.
+
+  **Implemented as**: `packages/server-core/prompts/leak-check-pass.md` +
+  `packages/server-core/src/leakCheck.js`'s `createLeakCheckPass({ client,
+  model })` — one forced tool call (`tool_choice` pinned to
+  `leak_check_result`, unlike the tracker-update pass's `"auto"`, since
+  this pass always owes a true/false answer, never a legitimate silence)
+  with a single `leaked: boolean` field. The prompt frames the judgment as
+  one true/false question sized for Haiku: a beat describes a destination,
+  not an already-true fact, so a specific secret (a name, identity,
+  discovery) stated as background color or an aside — unconnected to any
+  investigative action the response itself depicts — is a leak; that same
+  fact surfacing as the direct, in-fiction result of something players are
+  shown doing this response is not a leak, it's the beat's own intended
+  payoff (and the tracker-update pass, running in parallel, is what
+  advances the beat when that happens — the two passes can legitimately
+  read the same content differently without contradicting each other).
+  Ambiguous cases default to `false` (no cost to waiting; a false positive
+  would block a legitimate response for nothing).
+
+  Model is **always Haiku** (`claude-haiku-4-5-20251001`, no dev/prod
+  branch, unlike the narration call's `MODEL` constant — the user
+  confirmed this explicitly) — cheap and fast on purpose for a single
+  bounded judgment, not narration. Shares the same `REVIEW_PASS_MODEL`
+  constant with the tracker-update pass, which was also moved onto it
+  shortly after (see Phase 3's "Model, revised after Phase 4 shipped"
+  note above) — both apps' `claude.js` bind both review passes to one
+  constant, not two separately-named ones, since there's currently no
+  reason for them to ever differ. The "switch to Sonnet if a beat was
+  updated this turn" escalation from the original spec (§6 below) was
+  dropped for this first pass: tracker-update and leak-check run in
+  parallel (decision (2) above), so leak-check has no way to know the
+  tracker-update outcome before it starts — the two would need to run
+  sequentially to support that escalation, which conflicts with the
+  parallel-latency design. Revisit only if Haiku's judgment quality proves
+  insufficient in practice.
+
+  Wired into both apps' `routes/conversations.js` via a local
+  `maybeCheckLeak` helper — same shape as `maybeAdvanceBeat`, no-ops
+  immediately if the Story has no active beat, wrapped in try/catch so a
+  leak-check failure never breaks the player's turn — called via
+  `Promise.all` alongside `maybeAdvanceBeat` at both call sites
+  (`/respond` and `/new-chapter`'s intro-generation site), per decision
+  (2)'s parallel-execution design. Currently **detection only**: a
+  flagged response is logged server-side, not rewritten or blocked — see
+  Open Questions for what's still missing before this can act on a leak
+  rather than just report it.
 
 ## 1. Purpose & Context
 
@@ -208,13 +309,14 @@ and the antagonist has no independent agency — it only reacts to what's
 immediately in front of it.
 
 The Campaign Bible is a hidden document generated once per Story,
-containing a central conflict, a rough narrative arc ("beats"), and
-secondary NPC agendas. It gives Claude durable context to draw on across
-an entire Story — including across separate conversations/chapters —
-without ever exposing that context to players, preserving in-fiction
-discovery. (An antagonist's own independent plan was part of the
-original design — see "Villain's Plan Deferred" above for why it's not
-part of this spec right now.)
+containing a central conflict and a rough narrative arc ("beats"). It
+gives Claude durable context to draw on across an entire Story —
+including across separate conversations/chapters — without ever
+exposing that context to players, preserving in-fiction discovery. (Two
+pieces of the original design aren't part of this spec right now — an
+antagonist's own independent plan, and secondary NPC agendas — see
+"Villain's Plan Deferred" and "Secondary NPC Agendas Deferred" above for
+why.)
 
 **Out of scope for this spec:** the literal wording of any system prompt
 addition or MCP doc. These are called out below by name/purpose only, as
@@ -226,15 +328,13 @@ existing.
 ### 2.1 Bible Text (immutable narrative content)
 
 Generated once at Story creation, admin-reviewed before persisting (see
-§3). Stored per-Story, organized into named sections so it can be fetched
-piecemeal (§5.1) rather than as one document:
+§3). Stored per-Story, organized into named sections (originally meant
+to also support piecemeal fetching, §5.1 — superseded, see that section):
 
 - **Campaign Inputs** — player text input; tone, themes, threat
   preference, desired storylines
 - **Central Conflict** — Type (Person / Faction / System / Force /
   Hybrid), Identity, Motivation or Nature, Public Face, Resources
-- **Secondary NPC Agendas** — 2–4 entries, each with what they want, what
-  they know/don't know, how they react if players get close
 - **Beats** — 3–5 entries, each: `Beat ID`, `Title`, `Narrative`
   (describes a state the story should reach, not a scripted trigger —
   intentionally non-prescriptive)
@@ -279,15 +379,15 @@ One row/array entry per beat:
    (shared `.md` file, LLM instructions, per §Status point 1's
    architecture) + fetched lore/player-backstory context (existing MCP
    resources). Lore access at this step is required — it's how the
-   generated Central Conflict, NPCs, and beats end up grounded in the
-   actual world instead of generic placeholders.
+   generated Central Conflict and beats end up grounded in the actual
+   world instead of generic placeholders.
 4. Claude generates the full Bible Text (§2.1) **and** the initial
    beats tracker (§2.2) in one call, via forced tool-use with a JSON
    schema (see Status point 2) — not free prose requiring a second parse
    step.
 5. **Admin review step**: the generated content is shown to the admin,
-   editable per-section (Central Conflict fields, each NPC entry, each
-   beat's title/narrative) — same review-before-create UX as
+   editable per-section (Central Conflict fields, each beat's
+   title/narrative) — same review-before-create UX as
    `story-chapters.md`'s chapter-summary modal. Canceling creates nothing
    at all.
 6. On approval: Bible Text + the beats tracker are persisted, associated
@@ -368,79 +468,113 @@ MCP-server-registered tool/resource — see 5.2's note on `update_beats`,
 which deviates from that framing the same way `create_campaign_bible`
 already did.
 
-### 5.1 MCP Resource (read-only)
+### 5.1 MCP Resource (read-only) — planned, never built, superseded
 
-**`getBibleSection(section, id?)`**
-Fetches one named section of Bible Text — never the whole document.
-Valid sections: `central_conflict`, `npc:<name>`, `tone_guardrails`.
-(Beat narratives are not fetched through this resource — they arrive via
-per-request metadata, §4.1.)
+The original spec's plan: a Claude-initiated `getBibleSection(section,
+id?)` fetch, for three targets. Of those three, none ended up built as
+originally specified: `central_conflict` was superseded by a simpler
+design — Phase 2's `buildCampaignBibleContext` (§4) unconditionally
+injects Central Conflict + the active beat into every turn instead of
+fetching it on demand; `tone_guardrails` was never actually part of the
+§2.1 data model Phase 1 built (see §4.2's note); and `npc:<name>` — the
+only target this resource still had a real reason to exist for — is now
+entirely out of scope, see "Secondary NPC Agendas Deferred" above and
+`specs/future-features/campaign-bible-secondary-npcs.md` for the full
+writeup of why (a real bootstrapping gap in the original design, not
+just an unbuilt feature).
 
-Claude-initiated fetch triggers *(system prompt — LLM instructions, out
-of scope; named here only)*:
+### 5.2 MCP Tools (write) — implemented, see Phase 3 above
 
-- **New conversation start** → fetch `central_conflict` +
-  `tone_guardrails`, once, to reorient tone for a fresh session.
-- **Secondary NPC acting independently** → fetch that NPC's entry.
+**`update_beats`** is fully implemented — see Phase 3's "Implemented as"
+above for the actual shape (`packages/server-core/src/
+campaignTrackerUpdate.js`, wired into both apps' `routes/
+conversations.js` via `maybeAdvanceBeat`, verified against the live API).
+Confirms the framing call made before writing any code: it lives as a
+**shared, plain tool schema in `packages/server-core`**, not registered
+on either app's own `mcp/server.js` — mirroring how `create_campaign_bible`
+was built, not a true MCP-server tool, despite this section's inherited
+"MCP Tools" name.
 
-### 5.2 MCP Tools (write)
+### 5.3 Update decision logic — implemented, see Phase 3 above
 
-**`update_beats`**
-Marks the current beat `complete` and advances the next beat to
-`active`. Returns the new active beat as `{id, title, narrative,
-status}` (narrative joined server-side from Bible Text) so the app can
-attach it to future request metadata without a separate fetch.
-
-**Lives as a shared, plain tool schema in `packages/server-core`**, not
-registered on either app's own `mcp/server.js` — mirrors how
-`create_campaign_bible` actually got implemented (a plain tool object
-passed directly in its own `client.messages.create` call) rather than a
-true MCP-server tool. Not yet written — see Phase 3's decision (3) above.
-
-Draft prompts already exist for this — `packages/server-core/prompts/
-campaign-tracker-update-pass.md` (the decision of *whether* to call it)
-and `campaign-tracker-update-instructions.md` (the procedure for *how* to
-fill it in) — written as their own dedicated pass, not folded into the
-narration call's tool-use loop. Not yet wired into any code.
-
-### 5.3 Update decision logic
-
-- **System prompt** *(drafted — `campaign-tracker-update-pass.md`)*:
-  cheap true/false check run every response — did the active beat's
-  implied state get reached.
-- **MCP doc** *(drafted — `campaign-tracker-update-instructions.md`)*:
-  once the check fires, governs exactly how to fill in the resulting
-  `update_beats` call.
+- **System prompt**: `campaign-tracker-update-pass.md` — see Phase 3's
+  "Implemented as" above for the actual decision logic (a 20-message
+  window, not single-turn isolation — a deliberate departure from this
+  section's original "every response" framing, made once real Bible
+  generations showed compound/cumulative-fact beats were the common case).
+- **`campaign-tracker-update-instructions.md`**: drafted but never
+  wired into any running code — see Phase 3's note above on why (its
+  guidance ended up fully redundant with the main prompt's Output
+  contract once villain-plan was removed). Left in the repo as
+  historical/reference material.
 
 ## 6. Leak Prevention Pass (Phase 4)
 
-After the DM response is drafted:
+**What's actually built** (see Phase 4's "Implemented as" above for the
+full writeup): a cheap, Haiku-only, detection-only pass that checks the
+drafted response in isolation against only the active beat's own
+narrative, and logs (doesn't act on) a leak. The rest of this section is
+the original, broader design — kept here as the intended destination,
+not the current state, since the pieces below are still real gaps:
 
 1. Run a separate, cheap-model pass with: the drafted response + the
    current set of "secret facts" (Central Conflict identity/motivation
    not yet revealed to players, and any pending beat/step content not
-   yet reached).
-2. Prompt *(LLM instructions — out of scope)*: "does this response reveal
-   any of these facts, directly or by clear implication?"
+   yet reached). **Not yet built**: Central Conflict identity/motivation
+   has the exact same structural leak risk as active-beat text (it's
+   injected into every turn's context the same way, per Phase 2) but
+   isn't checked yet — the current pass only covers the active beat.
+   "Pending beat/step content" was never actually at risk the way this
+   line implies — pending beats aren't injected into context at all
+   (only the active one is), so there's nothing there for this pass to
+   catch; this line describes a risk that doesn't exist in the current
+   data-injection design.
+2. Prompt: "does this response reveal any of these facts, directly or by
+   clear implication?" **Refined for the built pass**: framed instead as
+   whether a specific secret surfaces incidentally/offhand versus as the
+   earned result of depicted player action this same response — see
+   `leak-check-pass.md` for the actual wording, which resolves the
+   original framing's tension with legitimate, intended beat payoffs
+   (a beat's content *should* eventually surface through play; naively
+   flagging any match would fight the story's own designed progression).
 3. If yes: feed back to the DM generation with the flagged text
-   highlighted, request a rewrite, then re-run the check.
-4. If no: response is released to players as-is.
+   highlighted, request a rewrite, then re-run the check. **Not built.**
+   The current pass only detects and logs — no rewrite loop exists. This
+   needs the retry-bound question below resolved first.
+4. If no: response is released to players as-is. **True today** — since
+   there's no rewrite step yet, this is actually the only outcome for
+   both `true` and `false` results; a `true` result just logs a warning
+   before falling through to the same "release as-is" path.
 
 Models: Haiku as default, switch to Sonnet if a beat was updated this
-turn.
+turn. **Simplified for the built pass**: always Haiku, no escalation —
+see Phase 4's "Implemented as" above for why the escalation doesn't fit
+the parallel-execution design as it stands.
 
 ## Open Questions
 
-- **Leak-check retry bound**: needs a max-retry count and a defined
-  fallback (serve a stripped-down safe response? flag for manual
-  review?) if the check keeps failing — an unbounded regenerate-and-
-  recheck loop is a real risk without one.
-- **"Already revealed" tracking for leak-check**: the banned-facts list
-  passed to the leak check needs to shrink as the campaign progresses
-  (e.g., once the reveal beat completes, the antagonist's identity is no
-  longer secret and shouldn't block the DM from naming them). Likely tied
-  to specific beat-completion flags rather than a manually maintained
-  list — not yet designed in detail.
+- **Leak-check rewrite/retry loop, not built**: the pass currently only
+  detects and logs (§6/Phase 4 above) — a flagged response still reaches
+  players unchanged. Still needs: how a flagged response gets fed back to
+  `generateReply` for a rewrite (its current signature has no "revise
+  this, avoiding X" entry point), a max-retry count, and a defined
+  fallback (serve a stripped-down safe response? flag for manual review?)
+  if the check keeps failing — an unbounded regenerate-and-recheck loop
+  is a real risk without one. Worth watching how often real play actually
+  flags a leak before designing this — no evidence yet on false-positive
+  rate.
+- **Central Conflict leak-checking, not built**: the built pass only
+  covers the active beat. Central Conflict identity/motivation is
+  injected into context the same way (Phase 2) and has the same
+  structural risk, but isn't checked. If added, the "already revealed"
+  question resurfaces here: the banned-facts list would need to shrink as
+  the campaign progresses (e.g. once the reveal beat completes, the
+  antagonist's identity is no longer secret and shouldn't block the DM
+  from naming them) — likely tied to specific beat-completion flags
+  rather than a manually maintained list. Not a problem for the
+  beat-only pass as built: an active beat's content is secret by
+  definition (it stops being "active" the moment it's earned and
+  advances), so there's no shrinking-list problem to solve yet.
 - **Review-step UI granularity**: §3.5 says per-section editable fields,
   not one flat textarea — exact modal layout (one big form vs. several
   smaller per-entity modals for NPCs/beats) not yet designed.

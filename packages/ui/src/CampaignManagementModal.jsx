@@ -72,7 +72,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
   }
 
   // path is an array of keys/indices into the draft object, e.g.
-  // ["secondaryNpcs", 1, "wants"] - structuredClone keeps this a plain,
+  // ["beats", 1, "narrative"] - structuredClone keeps this a plain,
   // dependency-free way to update one deeply-nested field immutably.
   function updateDraftField(path, value) {
     setDraft((current) => {
@@ -235,35 +235,6 @@ function BibleDraftEditor({ draft, onChange }) {
       </label>
 
       <hr />
-      <h3>Secondary NPC Agendas</h3>
-      {draft.secondaryNpcs.map((npc, i) => (
-        <div className="bible-draft-entry" key={i}>
-          <label>
-            Name
-            <input value={npc.name} onChange={(e) => onChange(["secondaryNpcs", i, "name"], e.target.value)} />
-          </label>
-          <label>
-            Wants
-            <textarea value={npc.wants} onChange={(e) => onChange(["secondaryNpcs", i, "wants"], e.target.value)} />
-          </label>
-          <label>
-            Knows / Doesn't Know
-            <textarea
-              value={npc.knowsOrDoesntKnow}
-              onChange={(e) => onChange(["secondaryNpcs", i, "knowsOrDoesntKnow"], e.target.value)}
-            />
-          </label>
-          <label>
-            Reaction If Players Get Close
-            <textarea
-              value={npc.reactionIfPlayersGetClose}
-              onChange={(e) => onChange(["secondaryNpcs", i, "reactionIfPlayersGetClose"], e.target.value)}
-            />
-          </label>
-        </div>
-      ))}
-
-      <hr />
       <h3>Beats</h3>
       {draft.beats.map((beat, i) => (
         <div className="bible-draft-entry" key={beat.id}>
@@ -303,19 +274,6 @@ function BibleTextView({ bible }) {
       <p>
         <strong>Resources:</strong> {bible.centralConflict.resources}
       </p>
-
-      <hr />
-      <h3>Secondary NPC Agendas</h3>
-      {bible.secondaryNpcs.map((npc, i) => (
-        <div key={i} className="bible-draft-entry">
-          <p>
-            <strong>{npc.name}</strong>
-          </p>
-          <p>Wants: {npc.wants}</p>
-          <p>Knows: {npc.knowsOrDoesntKnow}</p>
-          <p>Reaction: {npc.reactionIfPlayersGetClose}</p>
-        </div>
-      ))}
     </div>
   );
 }

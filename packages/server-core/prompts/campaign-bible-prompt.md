@@ -3,7 +3,7 @@
 ## Purpose
 You are generating a hidden campaign planning document — a "Campaign Bible" — for a tabletop RPG campaign that you (Claude) will run as Game Master across many future sessions. This document is never shown to players. Its job is to give you a persistent throughline so that scenes, NPCs, and complications you improvise turn-by-turn stay connected to a coherent long-term direction, instead of each session's threads feeling disconnected from the last.
 
-The bible is written once, at campaign creation, using the player-provided Campaign Inputs below. It should very rarely change after creation — the things that change session-to-session (beat status, step status, awareness of players) live in separate, smaller tracker records, not here. Write this content assuming it is close to permanent.
+The bible is written once, at campaign creation, using the player-provided Campaign Inputs below. It should very rarely change after creation — the things that change session-to-session (beat status) live in a separate, smaller tracker record, not here. Write this content assuming it is close to permanent.
 
 ## Output Format
 Submit your finished content via the `create_campaign_bible` tool call — do not write it out as prose or markdown in your reply. Look up whatever lore/backstory context you need first (see below); call `create_campaign_bible` only once, when you have everything you need. The tool's schema defines the exact fields required for each section below; this document is about what good content looks like for each of them, not how to format it.
@@ -31,9 +31,6 @@ Then provide:
 - **Resources**: what it can bring to bear against the players
 
 > **IMPORTANT**: choosing a flexible Type is not license to keep the content vague. Once you pick a type, commit to a specific, fully realized instance of it — a named person with a real backstory, or a named faction with real internal politics — not a placeholder standing in for "the bad guy." Genericness belongs only in the menu of possible shapes, never in the instance you actually write.
-
-### Secondary NPC Agendas
-2-4 NPCs connected to the central conflict, each with their own goal independent of the players' actions. Include at least one whose agenda could organically intersect with the players' investigation without being scripted to.
 
 ### Beats (narrative arc)
 3-5 beats marking the campaign's major waypoints, from the players' first unknowing contact with the central conflict through to its eventual confrontation or resolution. Each beat's `id` should be sequential (`beat_1`, `beat_2`, ...) and its `narrative` should describe what should be TRUE about the story once that beat is reached, and why it matters dramatically.
