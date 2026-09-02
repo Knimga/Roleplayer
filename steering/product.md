@@ -11,7 +11,7 @@ This monorepo hosts two shared web apps built on the same pattern: two players c
 
 - Exactly two users per app, always. No more, no less.
 - Each user authenticates via a personal access code.
-- Cyberpunk Red is hosted publicly on Render. Laria 5e is local-only so far — not yet deployed.
+- Both apps hosted publicly on Render.
 
 ## Core Experience (shared)
 
@@ -57,3 +57,13 @@ Each app keeps its own distinct visual identity — this is deliberate, not an i
 - Left vertical panel: conversation list and conversation management
 - Central area: selected conversation and messages; main interaction
 - Right vertical panel: user in-game tools and character-specific displays; column of components separated by h-rules. Some info here is passed to the LLM as part of player prompts.
+
+## Character Tools (right panel)
+
+- displays user's character info and tools for use in the current chapter of a story
+- character avatar image
+- HP and/or other status number trackers
+- character physical description text
+- character gear or abilities
+- map modal
+- dice roller
