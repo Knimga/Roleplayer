@@ -5,19 +5,20 @@ Here are the backstory files for each character:
 - `Vidik-backstory.md` - for Vidik, the Tech
 
 # Main Reference files - load when relevant:
-- `history-general.md` - history of the Cyberpunk world
-- `history-nightcity.md` - history of Night City in particular
-- `map-nightcity.md` - important places and zones in Night City
-- `factions.md` - various factions, corporations, gangs, etc.
-- `running-a-gig.md` - finding a gig, executing it, getting paid
-- `items-basic.md` - info on common items found at markets or on NPCs
-- `gear.md` - info on gear that the players may use
-- `roles.md` - info on roles (classes) that characters and NPCs may occupy
+- `history-general.md` - when a scene touches broader Cyberpunk-world history/lore, not Night City specifically
+- `history-nightcity.md` - when a scene needs Night City's own history
+- `map-nightcity.md` - when players travel to, reference, or ask about a specific place/zone in Night City
+- `factions.md` - when a faction, corporation, or gang becomes relevant to a scene
+- `running-a-gig.md` - when players are looking for work, taking a gig, or getting paid for one
+- `items-basic.md` - when players shop, loot, or need details on a common item found at markets or on NPCs
+- `gear.md` - when a player buys, uses, or asks about a specific piece of gear
+- `roles.md` - when a role (class) ability or mechanic comes up, for a player or an NPC
 - `skills.md` - deciding whether a check is needed and setting DVs
-- `fixer-operator-ability.md` - the Fixer's core ability
-- `tech-maker-ability.md` - the Tech's core ability
+- `fixer-operator-ability.md` - when a Fixer (Null) tries to use their core ability
+- `tech-maker-ability.md` - when a Tech (Vidik) tries to use their core ability
 - `combat.md` - any fight; how to run phases, rolls, and narration
-- `npc-modifier-lookup.md` — enemy attack/defense numbers
-- `weapon-damage-reference.md` — enemy damage dice
-- `player-damage-healing.md` — wound states, death saves, recovery
-- `reputation.md` - recognition and Facedowns
+- `npc-modifier-lookup.md` — when an NPC makes an attack or defense roll in combat
+- `weapon-damage-reference.md` — when rolling an NPC's attack damage
+- `player-damage-healing.md` — when a player takes damage, is dying, or is recovering
+- `reputation.md` - when an NPC might recognize a player, or a Facedown comes up
+- `our-flat.md` - when players are at, discuss, or return to their hideout
