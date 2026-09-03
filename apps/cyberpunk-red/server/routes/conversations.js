@@ -134,16 +134,29 @@ async function insertUserMessage(conversationId, sender, authorUsername, content
 // Also correctly resolves the race where a GM reply lands in the DB moments
 // before an edit/delete request arrives: the request just gets rejected as
 // locked, same as if the lock had already been visible client-side.
-// True if no message in the conversation was created after `createdAt` -
-// i.e. the row it came from is the single most recent message overall,
-// regardless of role. Used only for the admin delete-latest escape hatch
-// below; everywhere else "latest" is scoped to assistant replies specifically
-// (see the laterReply check).
-async function isLatestMessage(conversationId, createdAt) {
+// True if no *other* message in the conversation was created after
+// `createdAt` - i.e. the row it came from is the single most recent message
+// overall, regardless of role. Used only for the admin delete-latest escape
+// hatch below; everywhere else "latest" is scoped to assistant replies
+// specifically (see the laterReply check). Explicitly excludes messageId
+// itself rather than relying on the `gt(createdAt)` comparison alone - same
+// reasoning as hasLaterChapter above: Postgres stores timestamps at
+// microsecond precision, but Drizzle round-trips `createdAt` through a JS
+// `Date` (millisecond precision) once fetched and passed back in here,
+// truncating it - so comparing a row's real stored value against a
+// truncated copy of its own timestamp can spuriously read as "later than
+// itself".
+async function isLatestMessage(conversationId, messageId, createdAt) {
   const [later] = await db
     .select({ id: messages.id })
     .from(messages)
-    .where(and(eq(messages.conversationId, conversationId), gt(messages.createdAt, createdAt)))
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        gt(messages.createdAt, createdAt),
+        ne(messages.id, messageId),
+      ),
+    )
     .limit(1);
   return !later;
 }
@@ -151,12 +164,11 @@ async function isLatestMessage(conversationId, createdAt) {
 // `allowAdminDeleteLatest` is passed only by the delete route - lets the
 // admin delete the single most recent message in the conversation even when
 // it's the DM's own reply, to cleanly retry a bad response without any
-// other special-casing. Never applies to edits (a delete-only affordance),
-// and only ever unlocks the role check below - ownership (admin already
-// bypasses it), the chapter-lock check, and the laterReply check all still
-// apply as normal (the laterReply check in particular is automatically
-// satisfied for a genuinely-latest message anyway, so no separate bypass is
-// needed for it).
+// other special-casing. Never applies to edits (a delete-only affordance).
+// Unlocks the role check below; ownership (admin already bypasses it) and
+// the chapter-lock check still apply as normal. The laterReply check is
+// explicitly skipped rather than left to "naturally" pass - see its own
+// comment below for why it can't just be left alone here.
 async function findModifiableMessage(conversationId, messageId, user, { allowAdminDeleteLatest = false } = {}) {
   const [row] = await db
     .select()
@@ -168,7 +180,7 @@ async function findModifiableMessage(conversationId, messageId, user, { allowAdm
   }
 
   const isAdminDeletingLatest =
-    allowAdminDeleteLatest && user.isAdmin && (await isLatestMessage(conversationId, row.createdAt));
+    allowAdminDeleteLatest && user.isAdmin && (await isLatestMessage(conversationId, messageId, row.createdAt));
 
   if (row.role !== "user" && !isAdminDeletingLatest) {
     return { status: 403, error: "GM messages can't be edited or deleted" };
@@ -185,13 +197,24 @@ async function findModifiableMessage(conversationId, messageId, user, { allowAdm
     return { status: 403, error: "This chapter is locked — start a new chapter to continue." };
   }
 
-  const [laterReply] = await db
-    .select({ id: messages.id })
-    .from(messages)
-    .where(and(eq(messages.conversationId, conversationId), eq(messages.role, "assistant"), gt(messages.createdAt, row.createdAt)))
-    .limit(1);
-  if (laterReply) {
-    return { status: 403, error: "This message is locked — the DM has already replied" };
+  // Skipped for the admin-deletes-latest case: isAdminDeletingLatest already
+  // confirmed via isLatestMessage (correctly excluding row's own id) that no
+  // message of any role has a later createdAt, which trivially implies no
+  // *assistant* message does either - the query below would otherwise
+  // self-match on the same timestamp-truncation issue isLatestMessage guards
+  // against, since it doesn't exclude row's own id and row itself can now be
+  // the assistant message being checked (previously impossible to reach
+  // this line with an assistant row, since the role check above always
+  // short-circuited first).
+  if (!isAdminDeletingLatest) {
+    const [laterReply] = await db
+      .select({ id: messages.id })
+      .from(messages)
+      .where(and(eq(messages.conversationId, conversationId), eq(messages.role, "assistant"), gt(messages.createdAt, row.createdAt)))
+      .limit(1);
+    if (laterReply) {
+      return { status: 403, error: "This message is locked — the DM has already replied" };
+    }
   }
 
   return { row };
