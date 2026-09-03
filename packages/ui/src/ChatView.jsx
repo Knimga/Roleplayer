@@ -217,8 +217,15 @@ export default function ChatView({
     return messages.slice(index + 1).some((m) => m.role === "assistant");
   }
 
-  function canModify(m, index) {
+  function canEdit(m, index) {
     return isActiveChapter && m.role === "user" && (isAdmin || m.authorUsername === username) && !isLocked(index);
+  }
+
+  // Delete-only escape hatch, mirroring the server's allowAdminDeleteLatest:
+  // admin can always delete the single most recent message, even the DM's
+  // own reply, to cleanly retry a bad response - never extended to editing.
+  function canDelete(m, index) {
+    return canEdit(m, index) || (isAdmin && isActiveChapter && index === messages.length - 1);
   }
 
   function startEdit(m) {
@@ -282,14 +289,18 @@ export default function ChatView({
                   {m.edited && <span className="edited-label">(edited)</span>}
                 </div>
               )}
-              {canModify(m, i) && editingId !== m.id && (
+              {editingId !== m.id && (canEdit(m, i) || canDelete(m, i)) && (
                 <div className="message-actions">
-                  <button type="button" onClick={() => startEdit(m)} aria-label="Edit message">
-                    ✎
-                  </button>
-                  <button type="button" onClick={() => handleDeleteMessage(m)} aria-label="Delete message">
-                    🗑
-                  </button>
+                  {canEdit(m, i) && (
+                    <button type="button" onClick={() => startEdit(m)} aria-label="Edit message">
+                      ✎
+                    </button>
+                  )}
+                  {canDelete(m, i) && (
+                    <button type="button" onClick={() => handleDeleteMessage(m)} aria-label="Delete message">
+                      🗑
+                    </button>
+                  )}
                 </div>
               )}
             </li>

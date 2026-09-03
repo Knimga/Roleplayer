@@ -134,7 +134,30 @@ async function insertUserMessage(conversationId, sender, authorUsername, content
 // Also correctly resolves the race where a GM reply lands in the DB moments
 // before an edit/delete request arrives: the request just gets rejected as
 // locked, same as if the lock had already been visible client-side.
-async function findModifiableMessage(conversationId, messageId, user) {
+// True if no message in the conversation was created after `createdAt` -
+// i.e. the row it came from is the single most recent message overall,
+// regardless of role. Used only for the admin delete-latest escape hatch
+// below; everywhere else "latest" is scoped to assistant replies specifically
+// (see the laterReply check).
+async function isLatestMessage(conversationId, createdAt) {
+  const [later] = await db
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), gt(messages.createdAt, createdAt)))
+    .limit(1);
+  return !later;
+}
+
+// `allowAdminDeleteLatest` is passed only by the delete route - lets the
+// admin delete the single most recent message in the conversation even when
+// it's the DM's own reply, to cleanly retry a bad response without any
+// other special-casing. Never applies to edits (a delete-only affordance),
+// and only ever unlocks the role check below - ownership (admin already
+// bypasses it), the chapter-lock check, and the laterReply check all still
+// apply as normal (the laterReply check in particular is automatically
+// satisfied for a genuinely-latest message anyway, so no separate bypass is
+// needed for it).
+async function findModifiableMessage(conversationId, messageId, user, { allowAdminDeleteLatest = false } = {}) {
   const [row] = await db
     .select()
     .from(messages)
@@ -143,7 +166,11 @@ async function findModifiableMessage(conversationId, messageId, user) {
   if (!row) {
     return { status: 404, error: "Message not found" };
   }
-  if (row.role !== "user") {
+
+  const isAdminDeletingLatest =
+    allowAdminDeleteLatest && user.isAdmin && (await isLatestMessage(conversationId, row.createdAt));
+
+  if (row.role !== "user" && !isAdminDeletingLatest) {
     return { status: 403, error: "GM messages can't be edited or deleted" };
   }
   if (!user.isAdmin && row.authorUsername !== user.username) {
@@ -887,7 +914,9 @@ router.patch("/:id/messages/:messageId", async (req, res) => {
 });
 
 router.delete("/:id/messages/:messageId", async (req, res) => {
-  const result = await findModifiableMessage(req.params.id, req.params.messageId, req.user);
+  const result = await findModifiableMessage(req.params.id, req.params.messageId, req.user, {
+    allowAdminDeleteLatest: true,
+  });
   if (result.error) {
     return res.status(result.status).json({ error: result.error });
   }
