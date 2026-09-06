@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "./requireAuth.js";
-import { initializeTrackers } from "./campaignBible.js";
+import { initializeTrackers, advanceBeatsTracker, revertBeatsTracker } from "./campaignBible.js";
 
 // Takes the app's own db client and stories table rather than importing
 // them directly, since schema.js is game-specific data and stays in each app.
@@ -91,6 +91,41 @@ export function createStoriesRouter(db, stories, { generateCampaignBible } = {})
       beatsTracker: updated.beatsTracker,
     });
   });
+
+  // Manual admin override for the Beats tab's Advance/Un-advance controls -
+  // same advanceBeatsTracker/revertBeatsTracker pure functions the automatic
+  // tracker-update pass (Phase 3) already uses, just triggered directly by
+  // the admin instead of Claude's own judgment. Shares one handler since the
+  // two only differ in which transform runs; both no-op (200, unchanged
+  // tracker) at their respective boundaries rather than erroring, since
+  // "already exhausted" / "already on beat_1" aren't really error states -
+  // the frontend disables the button in those cases anyway, this is just the
+  // server-side mirror of that guard.
+  function createBeatsMoveRoute(transform) {
+    return async (req, res) => {
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ error: "Only the admin can manage the Campaign Bible" });
+      }
+
+      const [story] = await db
+        .select({ beatsTracker: stories.beatsTracker })
+        .from(stories)
+        .where(eq(stories.id, req.params.id));
+      if (!story) {
+        return res.status(404).json({ error: "Story not found" });
+      }
+      if (!story.beatsTracker) {
+        return res.status(400).json({ error: "No Campaign Bible exists for this Story" });
+      }
+
+      const beatsTracker = transform(story.beatsTracker);
+      await db.update(stories).set({ beatsTracker }).where(eq(stories.id, req.params.id));
+      res.json({ beatsTracker });
+    };
+  }
+
+  router.post("/:id/campaign-bible/beats/advance", createBeatsMoveRoute(advanceBeatsTracker));
+  router.post("/:id/campaign-bible/beats/revert", createBeatsMoveRoute(revertBeatsTracker));
 
   // Read-only fetch for the admin-only viewing tabs (Bible Text, Beats) -
   // lets the admin watch live tracker status while the feature is new,

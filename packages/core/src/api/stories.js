@@ -51,3 +51,26 @@ export async function getCampaignBible(storyId) {
   if (error) throw new Error(error);
   return res.json();
 }
+
+// Manual admin override for the Beats tab - advance/un-advance one beat at
+// a time, same effect the automatic tracker-update pass has, just admin-
+// triggered. Both return the updated { beatsTracker }.
+export async function advanceBeats(storyId) {
+  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/beats/advance`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const error = await parseErrorOr(res, "Failed to advance beat");
+  if (error) throw new Error(error);
+  return res.json();
+}
+
+export async function revertBeats(storyId) {
+  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/beats/revert`, {
+    method: "POST",
+    credentials: "include",
+  });
+  const error = await parseErrorOr(res, "Failed to revert beat");
+  if (error) throw new Error(error);
+  return res.json();
+}

@@ -244,3 +244,25 @@ export function advanceBeatsTracker(beatsTracker) {
     return beat;
   });
 }
+
+// The exact inverse of advanceBeatsTracker, for the admin's manual
+// un-advance control (CampaignManagementModal's Beats tab) - undoes one
+// advancement: the most recently completed beat goes back to `active`, and
+// whatever beat is currently `active` (if any) goes back to `pending`.
+// Beats are always a strict complete-prefix/at-most-one-active/pending-
+// suffix sequence, so "most recently completed" is always the beat right
+// before the active one - or, if the arc is exhausted (no beat active, every
+// beat complete), the very last beat. Returns the tracker unchanged if
+// there's nothing to revert (still on beat_1 with no prior completion) -
+// same "no-op at the boundary" shape as advanceBeatsTracker.
+export function revertBeatsTracker(beatsTracker) {
+  const activeIndex = beatsTracker.findIndex((b) => b.status === "active");
+  const lastCompletedIndex = activeIndex === -1 ? beatsTracker.length - 1 : activeIndex - 1;
+  if (beatsTracker[lastCompletedIndex]?.status !== "complete") return beatsTracker;
+
+  return beatsTracker.map((beat, i) => {
+    if (i === lastCompletedIndex) return { ...beat, status: "active" };
+    if (i === activeIndex) return { ...beat, status: "pending" };
+    return beat;
+  });
+}

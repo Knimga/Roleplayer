@@ -3,6 +3,8 @@ import {
   generateCampaignBible,
   approveCampaignBible,
   getCampaignBible,
+  advanceBeats,
+  revertBeats,
 } from "@roleplayer/core/api/stories.js";
 
 const CENTRAL_CONFLICT_TYPES = ["Person", "Faction/Organization", "System", "Force", "Hybrid"];
@@ -22,6 +24,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
   const [error, setError] = useState(null);
   const [bibleData, setBibleData] = useState(null);
   const [loadingBible, setLoadingBible] = useState(true);
+  const [movingBeats, setMovingBeats] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,6 +71,36 @@ export default function CampaignManagementModal({ storyId, onClose }) {
       setError(err.message);
     } finally {
       setApproving(false);
+    }
+  }
+
+  // Confirmation (with specific before/after beat titles, not a generic "are
+  // you sure") happens in TrackersView, right before either of these is
+  // called - these two just do the actual request + state update once the
+  // admin has confirmed.
+  async function handleAdvanceBeat() {
+    setMovingBeats(true);
+    setError(null);
+    try {
+      const result = await advanceBeats(storyId);
+      setBibleData((current) => ({ ...current, beatsTracker: result.beatsTracker }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setMovingBeats(false);
+    }
+  }
+
+  async function handleRevertBeat() {
+    setMovingBeats(true);
+    setError(null);
+    try {
+      const result = await revertBeats(storyId);
+      setBibleData((current) => ({ ...current, beatsTracker: result.beatsTracker }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setMovingBeats(false);
     }
   }
 
@@ -182,7 +215,12 @@ export default function CampaignManagementModal({ storyId, onClose }) {
             ) : !hasBible ? (
               <p className="modal-subtitle">No Campaign Bible created yet — use the Generate tab.</p>
             ) : (
-              <TrackersView beatsTracker={bibleData.beatsTracker} />
+              <TrackersView
+                beatsTracker={bibleData.beatsTracker}
+                onAdvance={handleAdvanceBeat}
+                onRevert={handleRevertBeat}
+                moving={movingBeats}
+              />
             )}
           </div>
         )}
@@ -278,10 +316,46 @@ function BibleTextView({ bible }) {
   );
 }
 
-function TrackersView({ beatsTracker }) {
+function TrackersView({ beatsTracker, onAdvance, onRevert, moving }) {
+  // Client-side mirror of the server's boundary checks (campaignBible.js's
+  // advanceBeatsTracker/revertBeatsTracker) - the server re-checks
+  // regardless, this only controls button enablement and lets the confirm
+  // dialog name the specific beats involved instead of a generic "are you
+  // sure?".
+  const activeIndex = beatsTracker.findIndex((b) => b.status === "active");
+  const canAdvance = activeIndex !== -1;
+  const lastCompletedIndex = activeIndex === -1 ? beatsTracker.length - 1 : activeIndex - 1;
+  const canRevert = beatsTracker[lastCompletedIndex]?.status === "complete";
+
+  function handleAdvanceClick() {
+    const current = beatsTracker[activeIndex];
+    const next = beatsTracker[activeIndex + 1];
+    const message = next
+      ? `Advance past "${current.title}"?\n\n"${next.title}" becomes the new active beat.\n\nThis can be undone with Un-advance.`
+      : `Advance past "${current.title}"?\n\nThis was the last beat - the arc will be marked complete.\n\nThis can be undone with Un-advance.`;
+    if (window.confirm(message)) onAdvance();
+  }
+
+  function handleRevertClick() {
+    const reactivating = beatsTracker[lastCompletedIndex];
+    const current = activeIndex !== -1 ? beatsTracker[activeIndex] : null;
+    const message = current
+      ? `Un-advance "${reactivating.title}" back to active?\n\n"${current.title}" reverts to pending.`
+      : `Un-advance "${reactivating.title}" back to active?\n\nThe arc will no longer be marked complete.`;
+    if (window.confirm(message)) onRevert();
+  }
+
   return (
     <div className="bible-draft-editor bible-readonly">
       <h3>Beats</h3>
+      <div className="modal-actions beats-move-controls">
+        <button type="button" onClick={handleRevertClick} disabled={!canRevert || moving}>
+          ← Un-advance
+        </button>
+        <button type="button" onClick={handleAdvanceClick} disabled={!canAdvance || moving}>
+          Advance →
+        </button>
+      </div>
       {beatsTracker.map((beat) => (
         <div key={beat.id} className={`bible-draft-entry tracker-status-${beat.status}`}>
           <p>
