@@ -200,11 +200,11 @@ export function buildCampaignBibleContext({ campaignBible, beatsTracker }) {
   const activeBeat = beatsTracker.find((b) => b.status === "active");
 
   const beatSection = activeBeat
-    ? `## Current Beat: ${activeBeat.title}\n${activeBeat.narrative}`
-    : "## Current Beat\nNone active - the arc has either not started or is exhausted.";
+    ? `## Beat to Steer Toward: ${activeBeat.title}\nA destination, not a fact that's already true - narrate the world moving toward this, not as something already in place.\n${activeBeat.narrative}`
+    : "## Beat to Steer Toward\nNone active - the arc has either not started or is exhausted.";
 
   return `# Hidden Campaign Context (Campaign Bible)
-This is a private planning document for your own use as GM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a beat, no referencing "the campaign bible" or any tracker/status language at all. Let it silently steer what NPCs do, what complications arise, and what the world reveals - players should only ever experience its effects in the fiction, never see or infer its existence as a mechanism.
+This is a private planning document for your own use as GM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a beat, no referencing "the campaign bible" or any tracker/status language at all. Actively drive your narration toward the beat below becoming true - see "Active Beat Steering" above for how. Players should only ever experience its effects in the fiction, never see or infer its existence as a mechanism.
 
 ## Central Conflict
 Type: ${centralConflict.type}
