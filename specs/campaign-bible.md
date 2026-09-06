@@ -91,6 +91,11 @@ the feature with NPCs fully out of scope too.
   defense in depth, so a future truncation (or any other incomplete tool
   call) can never again reach the frontend as silently-broken data — it
   previously crashed `BibleDraftEditor` outright.
+
+  **Model, always Sonnet**: `BIBLE_MODEL`, no dev/prod branch, unlike the
+  narration call's `MODEL` constant (Sonnet-dev/Opus-prod). Bible creation is
+  a one-off, infrequent, admin-triggered generation, not a per-turn cost —
+  the dev/prod cost-tiering `MODEL` exists for doesn't apply here.
 - [x] **Phase 2 — Per-request context injection + caching tiers.** Claude
   *reads* current beat state every turn; nothing writes yet. Isolates
   "does this change narration quality or cost" from "does mutation logic

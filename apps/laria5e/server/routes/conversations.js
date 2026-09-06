@@ -871,6 +871,7 @@ router.post("/:id/new-chapter", async (req, res) => {
         undefined,
         story?.campaignBible ?? null,
         story?.beatsTracker ?? null,
+        () => publish(newChapter.id, { type: "status", text: "DM is rolling..." }),
       );
 
       await Promise.all([
@@ -1148,6 +1149,7 @@ router.post("/:id/respond", async (req, res) => {
       conversation?.characterHp ?? null,
       conversation?.campaignBible ?? null,
       conversation?.beatsTracker ?? null,
+      () => publish(conversationId, { type: "status", text: "DM is rolling..." }),
     );
 
     await Promise.all([

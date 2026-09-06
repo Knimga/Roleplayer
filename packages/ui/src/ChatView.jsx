@@ -43,6 +43,11 @@ export default function ChatView({
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
+  // Text shown alongside the pending-reply spinner, e.g. "DM is rolling..."
+  // - null shows just the bare spinner (the pre-existing default). Reset on
+  // every fresh "generating" event so a status from an earlier turn can't
+  // linger into the next one.
+  const [pendingStatusText, setPendingStatusText] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
   // GM messages that arrived live over SSE this session — only these get
@@ -61,6 +66,7 @@ export default function ChatView({
     // selected") before (re)establishing history + SSE for the new id.
     setMessages([]);
     setAwaitingReply(false);
+    setPendingStatusText(null);
     setNotice(null);
     setLiveMessageIds(new Set());
     setEditingId(null);
@@ -83,17 +89,25 @@ export default function ChatView({
       if (cancelled) return;
       setMessages(history);
 
-      unsubscribe = subscribeToEvents(conversationId, ({ type, message, sender, senderUsername }) => {
+      unsubscribe = subscribeToEvents(conversationId, ({ type, message, sender, senderUsername, text }) => {
         // "generating"/"failed" have no message row — they only toggle the
         // shared spinner, for both players, not just whoever clicked "Ask
         // the DM". Handled first and returned early so they don't fall into
         // the message-list branches below or trigger onActivity for nothing.
         if (type === "generating") {
           setAwaitingReply(true);
+          setPendingStatusText(null);
           return;
         }
         if (type === "failed") {
           setAwaitingReply(false);
+          setPendingStatusText(null);
+          return;
+        }
+        // Also no message row - a live status update for the pending-reply
+        // spinner (e.g. "DM is rolling...") fired mid-generation.
+        if (type === "status") {
+          setPendingStatusText(text ?? null);
           return;
         }
         // No message row either — a character field (currently just HP)
@@ -123,6 +137,7 @@ export default function ChatView({
           setMessages((prev) => [...prev, message]);
           if (message.role === "assistant") {
             setAwaitingReply(false);
+            setPendingStatusText(null);
             setLiveMessageIds((prev) => new Set(prev).add(message.id));
           }
           // A message just landed, so whatever was being typed for it is
@@ -308,6 +323,7 @@ export default function ChatView({
           {awaitingReply && (
             <li className="pending">
               <span className="spinner" aria-label="Waiting for the DM" />
+              {pendingStatusText && <span className="pending-status-text">{pendingStatusText}</span>}
             </li>
           )}
           <div ref={bottomRef} />

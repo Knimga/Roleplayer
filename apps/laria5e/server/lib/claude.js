@@ -26,6 +26,11 @@ const MODEL =
 // here after real usage showed that was adding a full Sonnet/Opus-tier call
 // to every single DM turn just to re-read a 20-message window.
 const REVIEW_PASS_MODEL = process.env.ANTHROPIC_REVIEW_PASS_MODEL || "claude-haiku-4-5-20251001";
+// Always Sonnet, no dev/prod branch - Bible creation is a one-off,
+// infrequent, admin-triggered generation, not a per-turn cost like
+// narration, so the Opus-in-prod tiering MODEL otherwise uses doesn't apply
+// here.
+const BIBLE_MODEL = process.env.ANTHROPIC_BIBLE_MODEL || "claude-sonnet-5";
 const TONE_PROMPT_PATH = fileURLToPath(new URL("../config/laria-system-prompt.md", import.meta.url));
 const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/laria-reference-files.md", import.meta.url));
 
@@ -116,6 +121,7 @@ export async function generateReply(
   characterHp = null,
   campaignBible = null,
   beatsTracker = null,
+  onDiceRoll = null,
 ) {
   // Three independently-cached tiers (see specs/campaign-bible.md §4.2), not
   // one block: tier 1 (this app's static DM instructions) almost never
@@ -177,6 +183,13 @@ export async function generateReply(
     // server) before finishing its turn — run the tool call(s), feed the
     // results back, and let it continue.
     messages.push({ role: "assistant", content: response.content });
+    // Fired before the roll actually runs (though roll_dice itself is
+    // near-instant either way) so the caller can surface a live "DM is
+    // rolling..." status - it stays visible for however long Claude takes
+    // to continue after seeing the result, not just the roll itself.
+    if (onDiceRoll && toolUses.some((t) => t.name === "roll_dice")) {
+      onDiceRoll();
+    }
     const toolResults = await Promise.all(
       toolUses.map(async (toolUse) => {
         const result = await callMcpTool(toolUse.name, toolUse.input);
@@ -202,7 +215,7 @@ export const generateChapterSummary = createChapterSummaryGenerator({
 
 export const generateCampaignBible = createCampaignBibleGenerator({
   client,
-  model: MODEL,
+  model: BIBLE_MODEL,
   gameLabel: "DnD campaign in the homebrew world of Laria",
   getMcpTools,
   callMcpTool,
