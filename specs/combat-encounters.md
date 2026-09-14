@@ -40,12 +40,30 @@ below:
   one.
 - **Laria's combat roster appends Armor Class** (narrative roster never
   carried it; the combat DM resolves attacks against it).
-- **Phase 2 content**: Cyberpunk's `enemyStats.js` is a first-cut encoding of
+- **Phase 2 content**: Cyberpunk's `enemy-stats.js` is a first-cut encoding of
   its two mechanical docs (`{ tier, weapon, archetype? }` → attack / defense
   / damage), expected to be reworked. Laria's is a placeholder
   (`{ creatureType, threatTier }` → empty block, combat DM works from
   general 5e) pending its combat docs. Both `adHocLookups` lists are empty;
   the lookup → persist → re-render path is built and tested with a fake.
+
+**Reorganized 2026-09-14 into an engine + per-game module** (the layout the
+§7 table now shows). The shared engine lives in
+`packages/server-core/src/combat/` (`tools.js`, `context.js`,
+`generator.js`, `router.js`, with a README that maps the whole flow), and
+everything game-specific about combat lives in one folder per app,
+`apps/<app>/server/combat/` (`index.js` exporting the module contract,
+`enemy-schema.js`, `enemy-stats.js`, `lookups/`, `roll-message.js`,
+`system-prompt.md`). Two contract changes came with it: the handoff's
+per-enemy object is now **flat** and wholly the game's to define
+(`withBaseEnemyFields` composes the game's fields onto the engine's
+`name`/`description`/`motive`/`notes`; `generateCoreStats` receives the
+whole enemy), replacing the nested `statInputs` fragment this spec
+describes below; and the handoff-authoring guidance moved out of the core
+narrative prompt into `prompts/combat-handoff.md`, loaded as
+`start_combat`'s tool description so it's read at exactly the moment the
+model fills the fields, and carrying the "transcribe, don't invent" rule
+the live check showed was needed.
 - **Testing was model-free** except for two Sonnet narration calls (the
   second after the `max_tokens` fix) confirming the terminal `start_combat`
   path with the real model. Everything else - tool loop, validation,
@@ -502,7 +520,10 @@ content open. One invariant holds everywhere: *every enemy number is
 derived from a deterministic table and persisted into `context.enemies[i]
 .stats` the first time it's derived; the combat DM only ever reads.*
 
-Per app, `server/lib/enemyStats.js` exports three things:
+Per app, the combat game module (`server/combat/`, see the Status section
+for the as-built layout — this section keeps the original design language,
+where the game's fields were a nested `statInputs` object; as built they are
+flat on the enemy) exports three things:
 
 - **`statInputsSchema`** — the JSON-schema fragment for `enemies[].statInputs`
   in `start_combat` (§5.2). Whatever the narrative DM can name from the
@@ -546,21 +567,22 @@ additive, and each app can fill it in at its own pace.
 
 ## 7. What changes where
 
+As built (after the 2026-09-14 reorganization — see the Status section):
+
 | Area | Change |
 |---|---|
-| `schema.js` (both apps) | `combats`, `combat_messages`; one migration each |
-| `packages/server-core/src/combat.js` (new) | `START_COMBAT_TOOL`, `END_COMBAT_TOOL`, `createCombatGenerator`, `buildCombatContext`, `renderCombatOutcome` |
+| `schema.js` (both apps) | `combats`, `combat_messages`; one migration each (+ a follow-up adding `combat_messages.edited`) |
+| `packages/server-core/src/combat/` (new) — **the engine** | `tools.js` (`buildStartCombatTool`, `END_COMBAT_TOOL`, validators, `withBaseEnemyFields`), `context.js` (`buildCombatContext`, `renderCombatOutcome`), `generator.js` (`createCombatGenerator`), `router.js` (`createCombatsRouter`: `/combats/:id/messages`, `/roll`, `/respond`, message `PATCH`/`DELETE`, `/end`), `index.js`, and a `README.md` mapping the flow and the game-module contract |
 | `packages/server-core/prompts/combat-dm-core.md` (new) | shared phase-based **procedure** (both games use it for now) + values (dice discipline, exit rule, OOC, fail-forward, player agency) — see §5.3.1. Provisional: reverts to per-app if/when Laria gets initiative |
-| `<app>/server/config/<app>-combat-system-prompt.md` (new, per app) | per-app combat **mechanics only** — which die, crit rules, attack/damage math, status thresholds — plugged into the shared phase procedure, plus the always-needed mechanical docs baked in (§5.3.2). Laria's needs its own numbers authored first (§9), not a competing procedure |
+| `packages/server-core/prompts/combat-handoff.md` (new) | what a good handoff contains, incl. "transcribe the scene, invent nothing"; becomes `start_combat`'s tool description |
+| `apps/<app>/server/combat/` (new, per app) — **the game module** | `index.js` exports `{ enemySchema, generateCoreStats, adHocLookups, buildRollMessage, loadSystemPrompt }`; `enemy-schema.js` (what the narrative DM is asked per enemy, composed onto the engine's base fields); `enemy-stats.js` (core stats + tables, §6); `lookups/` (one file per ad hoc lookup); `roll-message.js` (the game's dice validation + message text, shared with the narrative `/roll`); `system-prompt.md` (per-app combat **mechanics only**, §5.3.1/§5.3.2 — Laria's needs its own numbers authored first, §9) |
 | `<app>/server/config/<app>-reference-files.md` | drop `combat.md`, `npc-modifier-lookup.md`, `weapon-damage-reference.md` — the narrative DM no longer runs combat turns (§5.3.2) |
-| `packages/server-core/src/combatsRouter.js` (new) | `/combats/:id/messages`, `/roll`, `/respond`, `/end`; factory taking db + tables + the app's generators |
 | `dm-system-prompt-core.md` | Combat section rewritten around `start_combat` (terminal, cut-in only) |
-| `lib/claude.js` (both apps) | `start_combat` in the narration tool list; `generateReply` returns `{ text, combatHandoff }`; `COMBAT_MODEL`; `generateCombatReply`/`generateCombatHandoff` bindings |
-| `routes/conversations.js` (both apps) | `/respond` handles a handoff; 409s while combat active; `/new-chapter` 409s; messages fetch includes `activeCombat`; admin start/end routes |
+| `lib/claude.js` (both apps) | `start_combat` in the narration tool list (schema from the game module); `generateReply` returns `{ text, combatHandoff }`; `COMBAT_MODEL`; `generateCombatReply`/`generateCombatEnd`/`generateCombatHandoff` bindings |
+| `routes/conversations.js` (both apps) | `/respond` handles a handoff; messages/roll/respond/new-chapter 409 while combat active; `GET /:id/combat`; admin `/combat/start` |
 | `packages/core/src/api/` | `combats.js` client calls |
-| `packages/ui/src/ChatView.jsx`, both apps' `App.jsx`/`RightPanel.jsx`, `DiceRoller` | combat block, routing, active-combat plumbing |
-| `LeftPanel.jsx` | New Chapter disabled during combat; admin Start/End combat |
-| Phase 2: `server/lib/enemyStats.js` (both apps) | the per-app stat module: `statInputsSchema`, `generateCoreStats(inputs)`, `adHocLookups[]` — see §6 for the contract |
+| `packages/ui/src/ChatView.jsx`, both apps' `App.jsx`/`RightPanel.jsx`/`DiceRoller` | combat block (with edit/delete), routing, active-combat plumbing |
+| `LeftPanel.jsx` | New Chapter disabled during combat; admin Start combat |
 
 ## 8. Phases
 

@@ -19,7 +19,7 @@ import {
 } from "@roleplayer/core/api/combats.js";
 
 // The sender the server stamps on a fight's outcome message
-// (packages/server-core/src/combatsRouter.js) - rendered visually marked, per
+// (packages/server-core/src/combat/router.js) - rendered visually marked, per
 // specs/combat-encounters.md Open Questions.
 const COMBAT_OUTCOME_SENDER = "Combat Outcome";
 

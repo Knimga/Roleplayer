@@ -66,7 +66,7 @@ export const combats = pgTable("combats", {
     .notNull()
     .references(() => conversations.id),
   status: text("status").notNull().default("active"), // 'active' | 'resolved'
-  context: jsonb("context").notNull(), // the start_combat handoff: { location, enemies: [{ name, description, motive?, notes?, statInputs, stats }], circumstances, objective, openingAction }
+  context: jsonb("context").notNull(), // the start_combat handoff: { location, enemies: [{ name, description, motive?, notes?, ...the game module's own fields, stats }], circumstances, objective, openingAction }
   summary: jsonb("summary"), // the end_combat outcome once resolved: { outcome, objectiveAchieved, narrative, partyStatus, enemyStatus, consequences }
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),

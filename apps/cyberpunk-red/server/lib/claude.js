@@ -8,9 +8,9 @@ import { createBlueprintGenerator, buildBlueprintContext, buildSituationContext 
 import { createSituationPass } from "@roleplayer/server-core/situationPass.js";
 import { createLeakCheckPass } from "@roleplayer/server-core/leakCheck.js";
 import { loadDmSystemPromptCore } from "@roleplayer/server-core/dmSystemPromptCore.js";
-import { buildStartCombatTool, validateHandoff, createCombatGenerator } from "@roleplayer/server-core/combat.js";
+import { buildStartCombatTool, validateHandoff, createCombatGenerator } from "@roleplayer/server-core/combat/index.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
-import { statInputsSchema, adHocLookups } from "./enemyStats.js";
+import { combatGame } from "../combat/index.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;
 
@@ -41,19 +41,11 @@ const BLUEPRINT_MODEL = process.env.ANTHROPIC_BLUEPRINT_MODEL || "claude-sonnet-
 const COMBAT_MODEL = process.env.ANTHROPIC_COMBAT_MODEL || "claude-sonnet-5";
 const TONE_PROMPT_PATH = fileURLToPath(new URL("../config/cyberpunk-system-prompt.md", import.meta.url));
 const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/cyberpunk-reference-files.md", import.meta.url));
-const COMBAT_PROMPT_PATH = fileURLToPath(new URL("../config/cyberpunk-combat-system-prompt.md", import.meta.url));
 
 // The narrative DM's terminal handoff into combat mode, with this game's own
-// enemy stat inputs composed into its schema (specs/combat-encounters.md
-// §5.2, §6).
-const START_COMBAT_TOOL = buildStartCombatTool({ statInputsSchema });
-
-// This app's combat mechanics prompt - tone plus this game's numbers, with
-// the always-needed mechanical docs baked in (§5.3.2). Read fresh per call
-// like every other prompt here.
-function loadCombatSystemPrompt() {
-  return readFileSync(COMBAT_PROMPT_PATH, "utf-8").trim();
-}
+// per-enemy schema composed in (see packages/server-core/src/combat/README.md
+// and ../combat/enemy-schema.js).
+const START_COMBAT_TOOL = buildStartCombatTool({ enemySchema: combatGame.enemySchema });
 
 // Read fresh on every call rather than cached at startup, so editing any of
 // the three prompt fragments takes effect on the next reply with no server
@@ -357,8 +349,7 @@ export const { generateCombatReply, generateCombatEnd } = createCombatGenerator(
   model: COMBAT_MODEL,
   getMcpTools,
   callMcpTool,
-  loadCombatSystemPrompt,
-  adHocLookups,
+  game: combatGame,
 });
 
 export const generateChapterSummary = createChapterSummaryGenerator({

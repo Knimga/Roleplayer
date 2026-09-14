@@ -15,8 +15,7 @@ import {
 } from "../lib/claude.js";
 import { getActiveMilestone, applySituationUpdate } from "@roleplayer/server-core/blueprint.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply, formatNewChapter } from "../lib/discordNotify.js";
-import { buildRollMessage } from "../lib/rollMessage.js";
-import { generateCoreStats } from "../lib/enemyStats.js";
+import { combatGame } from "../combat/index.js";
 
 const router = Router();
 const MAX_CONVERSATIONS = 50;
@@ -140,7 +139,7 @@ async function assertNoActiveCombat(conversationId, res) {
 async function startCombat(conversationId, handoff) {
   const context = {
     ...handoff,
-    enemies: handoff.enemies.map((enemy) => ({ ...enemy, stats: generateCoreStats(enemy.statInputs) })),
+    enemies: handoff.enemies.map((enemy) => ({ ...enemy, stats: combatGame.generateCoreStats(enemy) })),
   };
   const [combat] = await db.insert(combats).values({ conversationId, context }).returning();
   publish(conversationId, { type: "combat-started", combat: { id: combat.id, messages: [] } });
@@ -924,9 +923,10 @@ router.post("/:id/new-chapter", async (req, res) => {
 });
 
 router.post("/:id/roll", async (req, res) => {
-  // Roll validation, math and message format live in lib/rollMessage.js so
-  // the combat roll route produces identical messages.
-  const rollResult = buildRollMessage(req.body ?? {});
+  // Roll validation, math and message format live in the combat game
+  // module (combat/roll-message.js) so the combat roll route produces
+  // identical messages.
+  const rollResult = combatGame.buildRollMessage(req.body ?? {});
   if (rollResult.error) {
     return res.status(400).json({ error: rollResult.error });
   }

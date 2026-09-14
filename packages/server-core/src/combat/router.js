@@ -1,23 +1,24 @@
 import { Router } from "express";
 import { eq, asc, desc, and, gt, ne } from "drizzle-orm";
-import { requireAuth } from "./requireAuth.js";
-import { publish } from "./broadcaster.js";
-import { pendingReplies } from "./pendingReplies.js";
-import { renderCombatOutcome } from "./combat.js";
+import { requireAuth } from "../requireAuth.js";
+import { publish } from "../broadcaster.js";
+import { pendingReplies } from "../pendingReplies.js";
+import { renderCombatOutcome } from "./context.js";
 
 export const COMBAT_OUTCOME_SENDER = "Combat Outcome";
 
 // The combat-mode routes (specs/combat-encounters.md §5.3, §5.4): player
-// messages, rolls, the combat DM's turn, and the admin's manual end. Mounted
-// at /api/combats. Everything app-specific comes in as arguments:
+// messages, rolls, message edit/delete, the combat DM's turn, and the
+// admin's manual end. Mounted at /api/combats. Everything app-specific
+// comes in as arguments:
 //
 // - db + tables: the app's drizzle client and its combats / combatMessages /
 //   conversations / messages / stories tables (schema.js stays per-app).
+// - game: the app's combat module (see README.md) - only its
+//   buildRollMessage is used here, so a combat roll reads identically to a
+//   narrative one.
 // - generateCombatReply / generateCombatEnd: the app's pre-bound combat
-//   generator (createCombatGenerator in combat.js).
-// - buildRollMessage(body) -> { content } | { error }: the app's own roll
-//   math + message format, shared with its /:id/roll route so a combat roll
-//   reads identically to a narrative one.
+//   generator (createCombatGenerator in generator.js).
 // - buildRoster(conversation): the app's player-roster builder.
 // - notifyOtherPlayer + formatPlayerMessage + formatDmReply: Discord, every
 //   combat DM turn included (Open Questions: "every DM turn").
@@ -27,9 +28,9 @@ export const COMBAT_OUTCOME_SENDER = "Combat Outcome";
 export function createCombatsRouter({
   db,
   tables,
+  game,
   generateCombatReply,
   generateCombatEnd,
-  buildRollMessage,
   buildRoster,
   notifyOtherPlayer,
   formatPlayerMessage,
@@ -38,6 +39,7 @@ export function createCombatsRouter({
   users,
 }) {
   const { combats, combatMessages, conversations, messages, stories } = tables;
+  const { buildRollMessage } = game;
   const router = Router();
   router.use(requireAuth);
 

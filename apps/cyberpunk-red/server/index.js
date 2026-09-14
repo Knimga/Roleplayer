@@ -6,28 +6,29 @@ import { SESSION_SECRET, users } from "@roleplayer/server-core/users.js";
 import authRouter from "@roleplayer/server-core/authRouter.js";
 import { createStoriesRouter } from "@roleplayer/server-core/storiesRouter.js";
 import { createSettingsRouter } from "@roleplayer/server-core/settingsRouter.js";
-import { createCombatsRouter } from "@roleplayer/server-core/combatsRouter.js";
+import { createCombatsRouter } from "@roleplayer/server-core/combat/index.js";
 import conversationsRouter, { runNarrativePasses } from "./routes/conversations.js";
 import { db } from "./lib/db.js";
 import { stories, conversations, messages, combats, combatMessages } from "./db/schema.js";
 import { getSettings, setDiscordNotificationsEnabled } from "./lib/settings.js";
 import { generateBlueprint, generateCombatReply, generateCombatEnd, buildPlayerRoster } from "./lib/claude.js";
-import { buildRollMessage } from "./lib/rollMessage.js";
+import { combatGame } from "./combat/index.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply } from "./lib/discordNotify.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.join(__dirname, "../client/dist");
 const PORT = process.env.PORT || 3001;
 
-// Combat mode (specs/combat-encounters.md): the shared router, handed this
-// app's tables, its pre-bound combat DM, its roll format, its roster
-// builder, and the narrative passes to run once over each fight's outcome.
+// Combat mode (specs/combat-encounters.md): the shared engine's router,
+// handed this app's tables, its combat game module (./combat/), its
+// pre-bound combat DM, its roster builder, and the narrative passes to run
+// once over each fight's outcome.
 const combatsRouter = createCombatsRouter({
   db,
   tables: { combats, combatMessages, conversations, messages, stories },
+  game: combatGame,
   generateCombatReply,
   generateCombatEnd,
-  buildRollMessage,
   buildRoster: (conversation) =>
     buildPlayerRoster(
       conversation.characterNames,
