@@ -19,7 +19,15 @@ const REQUIRED_ENV_VARS = [
   "SESSION_SECRET",
 ];
 
-export function createApp({ authRouter, conversationsRouter, storiesRouter, settingsRouter, sessionSecret, clientDistDir }) {
+export function createApp({
+  authRouter,
+  conversationsRouter,
+  storiesRouter,
+  settingsRouter,
+  combatsRouter = null,
+  sessionSecret,
+  clientDistDir,
+}) {
   const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
   if (missingEnvVars.length > 0) {
     console.error(`Missing required environment variable(s): ${missingEnvVars.join(", ")}`);
@@ -39,6 +47,7 @@ export function createApp({ authRouter, conversationsRouter, storiesRouter, sett
   app.use("/api/conversations", conversationsRouter);
   app.use("/api/stories", storiesRouter);
   app.use("/api/settings", settingsRouter);
+  if (combatsRouter) app.use("/api/combats", combatsRouter);
 
   // Serves the built frontend in production, where Express and the client are
   // deployed as a single Render Web Service (same origin — no CORS needed for

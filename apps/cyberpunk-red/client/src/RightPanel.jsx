@@ -13,6 +13,7 @@ import { saveCharacterDescription, saveCharacterGear } from "./api/conversations
 // more later) is just a section stacked in this column, not a panel itself.
 export default function RightPanel({
   conversationId,
+  activeCombatId,
   myCharacterName,
   myCharacterDetails,
   myAvatarUrl,
@@ -93,7 +94,7 @@ export default function RightPanel({
           <hr />
         </>
       )}
-      <DiceRoller conversationId={conversationId} />
+      <DiceRoller conversationId={conversationId} activeCombatId={activeCombatId} />
     </nav>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppSession } from "@roleplayer/core/useAppSession.js";
 import LoginScreen from "@roleplayer/ui/LoginScreen.jsx";
 import LeftPanel from "@roleplayer/ui/LeftPanel.jsx";
@@ -48,6 +49,10 @@ function App() {
     otherUsername,
     isActiveChapter,
   } = useAppSession();
+  // The selected chapter's active combat ({ id, conversationId } or null),
+  // owned by ChatView and lifted here so the sidebar and the dice roller can
+  // route around it (specs/combat-encounters.md §5.5).
+  const [activeCombat, setActiveCombat] = useState(null);
 
   if (checkingSession) {
     return null;
@@ -73,6 +78,7 @@ function App() {
             <div className="wordmark-subtitle">RP</div>
           </div>
         }
+        activeCombat={activeCombat}
         NewStoryModal={Laria5eNewStoryModal}
       />
       <ChatView
@@ -83,9 +89,11 @@ function App() {
         isActiveChapter={isActiveChapter}
         onActivity={refreshConversations}
         myReady={selectedConversation?.characterReady?.[session.username]}
+        onActiveCombatChange={setActiveCombat}
       />
       <RightPanel
         conversationId={selectedConversationId}
+        activeCombatId={activeCombat?.id ?? null}
         myCharacterName={selectedConversation?.characterNames?.[session.username]}
         myCharacterDetails={selectedConversation?.characterDetails?.[session.username]}
         myAvatarUrl={selectedConversation?.avatarImages?.[session.username]}

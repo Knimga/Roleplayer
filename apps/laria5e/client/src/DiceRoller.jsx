@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { submitRoll } from "./api/conversations";
+import { submitCombatRoll } from "@roleplayer/core/api/combats.js";
 
 const SKILLS = [
   "Athletics",
@@ -40,7 +41,10 @@ function emptyFields() {
 // happens server-side (POST /:id/roll) so it's authoritative and visible to
 // both players as a message in the conversation, the same as any other
 // chat message. This component is just the input surface + gating.
-export default function DiceRoller({ conversationId }) {
+// While the chapter is in combat mode (activeCombatId set), rolls post to
+// the combat's own transcript instead of the chapter's - same math, same
+// message format, different table (specs/combat-encounters.md §5.3).
+export default function DiceRoller({ conversationId, activeCombatId = null }) {
   const [rollType, setRollType] = useState("skill"); // "skill" | "attack" | "save" | "damage" | "misc"
   const [fields, setFields] = useState(emptyFields);
   const [error, setError] = useState(null);
@@ -112,7 +116,7 @@ export default function DiceRoller({ conversationId }) {
     setError(null);
     try {
       const modifier = parseInt(fields.modifier, 10) || 0;
-      await submitRoll(conversationId, {
+      const payload = {
         rollType,
         skill: isSkill ? fields.skill : undefined,
         ability: isSave ? fields.ability : undefined,
@@ -121,7 +125,12 @@ export default function DiceRoller({ conversationId }) {
         crit: isDamage ? fields.crit : undefined,
         description: isMisc ? fields.description.trim() : undefined,
         modifier,
-      });
+      };
+      if (activeCombatId) {
+        await submitCombatRoll(activeCombatId, payload);
+      } else {
+        await submitRoll(conversationId, payload);
+      }
       setFields((prev) => ({ ...emptyFields(), adv: prev.adv }));
     } catch (err) {
       setError(err.message);
@@ -244,6 +253,7 @@ export default function DiceRoller({ conversationId }) {
                   placeholder="2"
                   value={row.count}
                   onChange={(e) => updateRow(i, { count: e.target.value })}
+                  onFocus={(e) => e.target.select()}
                 />
                 <span className="die-separator">d</span>
                 <select
@@ -295,6 +305,7 @@ export default function DiceRoller({ conversationId }) {
           placeholder="0"
           value={fields.modifier}
           onChange={(e) => update({ modifier: e.target.value })}
+          onFocus={(e) => e.target.select()}
         />
       </label>
 

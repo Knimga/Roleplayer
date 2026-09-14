@@ -9,6 +9,25 @@ import {
   editMessage,
   deleteMessage,
 } from "@roleplayer/core/api/conversations.js";
+import {
+  getActiveCombat,
+  sendCombatMessage,
+  requestCombatReply,
+  endCombat,
+  editCombatMessage,
+  deleteCombatMessage,
+} from "@roleplayer/core/api/combats.js";
+
+// The sender the server stamps on a fight's outcome message
+// (packages/server-core/src/combatsRouter.js) - rendered visually marked, per
+// specs/combat-encounters.md Open Questions.
+const COMBAT_OUTCOME_SENDER = "Combat Outcome";
+
+function messageClassName(m) {
+  if (m.sender === "Story So Far") return `${m.role} recap`;
+  if (m.sender === COMBAT_OUTCOME_SENDER) return `${m.role} outcome`;
+  return m.role;
+}
 
 const TYPING_PING_THROTTLE_MS = 2000;
 const TYPING_INDICATOR_TIMEOUT_MS = 4000;
@@ -38,8 +57,15 @@ export default function ChatView({
   isActiveChapter = true,
   onActivity,
   myReady,
+  onActiveCombatChange,
 }) {
   const [messages, setMessages] = useState([]);
+  // The chapter's active combat - { id, messages } - or null. While set, the
+  // composer, "Ask the DM" and the dice roller all post to the combat routes
+  // and the combat's transcript renders as a block after the main messages
+  // (specs/combat-encounters.md §5.5). Lifted to the app via
+  // onActiveCombatChange so the roller and the sidebar can see it too.
+  const [activeCombat, setActiveCombat] = useState(null);
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState(null);
   const [awaitingReply, setAwaitingReply] = useState(false);
@@ -50,6 +76,10 @@ export default function ChatView({
   const [pendingStatusText, setPendingStatusText] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
+  // Which transcript editingId belongs to - main chapter or the active
+  // combat - so commitEdit/handleDeleteMessage route to the right API.
+  // Meaningless while editingId is null.
+  const [editingInCombat, setEditingInCombat] = useState(false);
   // GM messages that arrived live over SSE this session — only these get
   // the typewriter/fade-in animation. History loaded on mount or on a
   // conversation switch renders instantly, so revisiting a long
@@ -65,6 +95,8 @@ export default function ChatView({
     // Reset local state on every conversation switch (including to "none
     // selected") before (re)establishing history + SSE for the new id.
     setMessages([]);
+    setActiveCombat(null);
+    onActiveCombatChange?.(null);
     setAwaitingReply(false);
     setPendingStatusText(null);
     setNotice(null);
@@ -85,11 +117,13 @@ export default function ChatView({
     let unsubscribe = () => {};
 
     (async () => {
-      const history = await getMessages(conversationId);
+      const [history, { combat }] = await Promise.all([getMessages(conversationId), getActiveCombat(conversationId)]);
       if (cancelled) return;
       setMessages(history);
+      setActiveCombat(combat);
+      onActiveCombatChange?.(combat ? { id: combat.id, conversationId } : null);
 
-      unsubscribe = subscribeToEvents(conversationId, ({ type, message, sender, senderUsername, text }) => {
+      unsubscribe = subscribeToEvents(conversationId, ({ type, message, sender, senderUsername, text, combat: startedCombat }) => {
         // "generating"/"failed" have no message row — they only toggle the
         // shared spinner, for both players, not just whoever clicked "Ask
         // the DM". Handled first and returned early so they don't fall into
@@ -129,6 +163,50 @@ export default function ChatView({
           }
           return;
         }
+        // Combat mode events, all on this chapter's own channel. A fight
+        // starting or ending also brings the shared spinner down: the turn
+        // that started it (the cut-in) is over, and the outcome message
+        // below is the reply that ends the turn that ended it.
+        if (type === "combat-started") {
+          setActiveCombat(startedCombat);
+          onActiveCombatChange?.({ id: startedCombat.id, conversationId });
+          setAwaitingReply(false);
+          setPendingStatusText(null);
+          onActivity?.();
+          return;
+        }
+        if (type === "combat-message") {
+          setActiveCombat((prev) => (prev ? { ...prev, messages: [...prev.messages, message] } : prev));
+          if (message.role === "assistant") {
+            setAwaitingReply(false);
+            setPendingStatusText(null);
+            setLiveMessageIds((prev) => new Set(prev).add(message.id));
+          }
+          setTypingSender(null);
+          clearTimeout(typingTimeoutRef.current);
+          onActivity?.();
+          return;
+        }
+        if (type === "combat-message-updated") {
+          setActiveCombat((prev) =>
+            prev ? { ...prev, messages: prev.messages.map((m) => (m.id === message.id ? message : m)) } : prev,
+          );
+          return;
+        }
+        if (type === "combat-message-deleted") {
+          setActiveCombat((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m.id !== message.id) } : prev));
+          return;
+        }
+        if (type === "combat-ended") {
+          setActiveCombat(null);
+          onActiveCombatChange?.(null);
+          setMessages((prev) => [...prev, message]);
+          setLiveMessageIds((prev) => new Set(prev).add(message.id));
+          setAwaitingReply(false);
+          setPendingStatusText(null);
+          onActivity?.();
+          return;
+        }
         if (type === "updated") {
           setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
         } else if (type === "deleted") {
@@ -158,7 +236,7 @@ export default function ChatView({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, awaitingReply]);
+  }, [messages, activeCombat, awaitingReply]);
 
   // Auto-grow the textarea to fit its content; CSS max-height + overflow-y
   // takes over once it hits the cap.
@@ -169,7 +247,10 @@ export default function ChatView({
     el.style.height = `${el.scrollHeight}px`;
   }, [draft]);
 
-  const lastMessage = messages[messages.length - 1];
+  // In combat the guard reads the combat's own transcript: an empty one is
+  // the fight's opening turn, which the combat DM takes first.
+  const guardedMessages = activeCombat ? activeCombat.messages : messages;
+  const lastMessage = guardedMessages[guardedMessages.length - 1];
   const dmCanRespond = !lastMessage || lastMessage.role !== "assistant";
 
   function handleDraftChange(value) {
@@ -188,7 +269,16 @@ export default function ChatView({
     if (!content) return;
     setDraft("");
     setNotice(null);
-    await sendMessage(conversationId, content);
+    try {
+      if (activeCombat) {
+        await sendCombatMessage(activeCombat.id, content);
+      } else {
+        await sendMessage(conversationId, content);
+      }
+    } catch (err) {
+      setNotice(err.message);
+      setDraft(content);
+    }
   }
 
   function handleKeyDown(e) {
@@ -206,7 +296,27 @@ export default function ChatView({
       // actual reply is generated in the background and arrives later over
       // SSE, which is what actually clears awaitingReply (see the
       // subscribeToEvents callback above). Only clear it here on failure.
-      await requestReply(conversationId);
+      if (activeCombat) {
+        await requestCombatReply(activeCombat.id);
+      } else {
+        await requestReply(conversationId);
+      }
+    } catch (err) {
+      setNotice(err.message);
+      setAwaitingReply(false);
+    }
+  }
+
+  // Admin manual override (specs/combat-encounters.md §5.4): the combat DM is
+  // made to produce the outcome from the transcript as it stands. The
+  // combat-ended event does the rest.
+  async function handleEndCombat() {
+    if (!activeCombat) return;
+    if (!window.confirm("End this combat now? The combat DM will write up the outcome from the fight so far.")) return;
+    setNotice(null);
+    setAwaitingReply(true);
+    try {
+      await endCombat(activeCombat.id);
     } catch (err) {
       setNotice(err.message);
       setAwaitingReply(false);
@@ -227,52 +337,65 @@ export default function ChatView({
 
   // Client-side mirror of the server's lock check, for showing/hiding the
   // edit/delete icons — the server re-checks regardless on every request, so
-  // this only controls UI visibility, not actual enforcement.
-  function isLocked(index) {
-    return messages.slice(index + 1).some((m) => m.role === "assistant");
+  // this only controls UI visibility, not actual enforcement. `list` is
+  // whichever transcript `m` belongs to - the main chapter or the active
+  // combat's own messages - since each is locked independently (a combat DM
+  // reply only locks that combat's own earlier messages, never the chapter's).
+  function isLocked(list, index) {
+    return list.slice(index + 1).some((m) => m.role === "assistant");
   }
 
-  function canEdit(m, index) {
-    return isActiveChapter && m.role === "user" && (isAdmin || m.authorUsername === username) && !isLocked(index);
+  function canEdit(list, m, index) {
+    return isActiveChapter && m.role === "user" && (isAdmin || m.authorUsername === username) && !isLocked(list, index);
   }
 
   // Delete-only escape hatch, mirroring the server's allowAdminDeleteLatest:
-  // admin can always delete the single most recent message, even the DM's
-  // own reply, to cleanly retry a bad response - never extended to editing.
-  function canDelete(m, index) {
-    return canEdit(m, index) || (isAdmin && isActiveChapter && index === messages.length - 1);
+  // admin can always delete the single most recent message in the list, even
+  // the DM's own reply, to cleanly retry a bad response - never extended to
+  // editing.
+  function canDelete(list, m, index) {
+    return canEdit(list, m, index) || (isAdmin && isActiveChapter && index === list.length - 1);
   }
 
-  function startEdit(m) {
+  function startEdit(m, inCombat = false) {
     setEditingId(m.id);
     setEditDraft(m.content);
+    setEditingInCombat(inCombat);
   }
 
-  async function commitEdit(messageId) {
+  async function commitEdit(messageId, inCombat = editingInCombat) {
     const content = editDraft.trim();
     setEditingId(null);
     if (!content) return;
     try {
-      await editMessage(conversationId, messageId, content);
+      if (inCombat) {
+        await editCombatMessage(activeCombat.id, messageId, content);
+      } else {
+        await editMessage(conversationId, messageId, content);
+      }
     } catch (err) {
       setNotice(err.message);
     }
   }
 
-  function handleEditKeyDown(e, messageId) {
+  function handleEditKeyDown(e, messageId, inCombat) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      commitEdit(messageId);
+      commitEdit(messageId, inCombat);
     }
     if (e.key === "Escape") {
       setEditingId(null);
     }
   }
 
-  async function handleDeleteMessage(m) {
+  async function handleDeleteMessage(m, inCombat = false) {
     if (!window.confirm("Delete this message? This can't be undone.")) return;
     try {
-      await deleteMessage(conversationId, m.id);
+      if (inCombat) {
+        await deleteCombatMessage(activeCombat.id, m.id);
+      } else {
+        await deleteMessage(conversationId, m.id);
+      }
     } catch (err) {
       setNotice(err.message);
     }
@@ -283,7 +406,7 @@ export default function ChatView({
       <div className="chat-inner">
         <ul id="messages">
           {messages.map((m, i) => (
-            <li key={m.id} className={m.sender === "Story So Far" ? `${m.role} recap` : m.role}>
+            <li key={m.id} className={messageClassName(m)}>
               <span className="sender">{m.sender}</span>
               {editingId === m.id ? (
                 <textarea
@@ -291,12 +414,12 @@ export default function ChatView({
                   autoFocus
                   value={editDraft}
                   onChange={(e) => setEditDraft(e.target.value)}
-                  onBlur={() => commitEdit(m.id)}
-                  onKeyDown={(e) => handleEditKeyDown(e, m.id)}
+                  onBlur={() => commitEdit(m.id, false)}
+                  onKeyDown={(e) => handleEditKeyDown(e, m.id, false)}
                 />
               ) : (
                 <div className="bubble">
-                  {m.role === "assistant" && m.sender !== "Story So Far" && liveMessageIds.has(m.id) ? (
+                  {m.role === "assistant" && m.sender !== "Story So Far" && m.sender !== COMBAT_OUTCOME_SENDER && liveMessageIds.has(m.id) ? (
                     <AnimatedGMReply text={m.content} />
                   ) : (
                     formatContent(m.content)
@@ -304,15 +427,15 @@ export default function ChatView({
                   {m.edited && <span className="edited-label">(edited)</span>}
                 </div>
               )}
-              {editingId !== m.id && (canEdit(m, i) || canDelete(m, i)) && (
+              {editingId !== m.id && (canEdit(messages, m, i) || canDelete(messages, m, i)) && (
                 <div className="message-actions">
-                  {canEdit(m, i) && (
-                    <button type="button" onClick={() => startEdit(m)} aria-label="Edit message">
+                  {canEdit(messages, m, i) && (
+                    <button type="button" onClick={() => startEdit(m, false)} aria-label="Edit message">
                       ✎
                     </button>
                   )}
-                  {canDelete(m, i) && (
-                    <button type="button" onClick={() => handleDeleteMessage(m)} aria-label="Delete message">
+                  {canDelete(messages, m, i) && (
+                    <button type="button" onClick={() => handleDeleteMessage(m, false)} aria-label="Delete message">
                       🗑
                     </button>
                   )}
@@ -320,6 +443,60 @@ export default function ChatView({
               )}
             </li>
           ))}
+          {activeCombat && (
+            <li className="combat-block">
+              <div className="combat-divider">
+                <span>⚔ Combat</span>
+                {isAdmin && (
+                  <button type="button" className="combat-end-button" onClick={handleEndCombat} disabled={awaitingReply}>
+                    End combat
+                  </button>
+                )}
+              </div>
+              <ul className="combat-messages">
+                {activeCombat.messages.length === 0 && (
+                  <li className="combat-empty">The fight is on. Ask the DM to open it.</li>
+                )}
+                {activeCombat.messages.map((m, i) => (
+                  <li key={m.id} className={m.role}>
+                    <span className="sender">{m.sender}</span>
+                    {editingId === m.id ? (
+                      <textarea
+                        className="edit-textarea"
+                        autoFocus
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        onBlur={() => commitEdit(m.id, true)}
+                        onKeyDown={(e) => handleEditKeyDown(e, m.id, true)}
+                      />
+                    ) : (
+                      <div className="bubble">
+                        {m.role === "assistant" && liveMessageIds.has(m.id) ? <AnimatedGMReply text={m.content} /> : formatContent(m.content)}
+                        {m.edited && <span className="edited-label">(edited)</span>}
+                      </div>
+                    )}
+                    {editingId !== m.id && (canEdit(activeCombat.messages, m, i) || canDelete(activeCombat.messages, m, i)) && (
+                      <div className="message-actions">
+                        {canEdit(activeCombat.messages, m, i) && (
+                          <button type="button" onClick={() => startEdit(m, true)} aria-label="Edit message">
+                            ✎
+                          </button>
+                        )}
+                        {canDelete(activeCombat.messages, m, i) && (
+                          <button type="button" onClick={() => handleDeleteMessage(m, true)} aria-label="Delete message">
+                            🗑
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="combat-divider combat-divider-bottom">
+                <span>⚔</span>
+              </div>
+            </li>
+          )}
           {awaitingReply && (
             <li className="pending">
               <span className="spinner" aria-label="Waiting for the DM" />
@@ -354,7 +531,7 @@ export default function ChatView({
                 value={draft}
                 onChange={(e) => handleDraftChange(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Message as ${myCharacterName ?? username}`}
+                placeholder={`Message as ${myCharacterName ?? username}${activeCombat ? " (combat)" : ""}`}
                 rows={1}
               />
               <button type="submit" disabled={!draft.trim()}>

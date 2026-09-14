@@ -8,9 +8,8 @@ import { pgTable, uuid, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-c
 export const stories = pgTable("stories", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  campaignBible: jsonb("campaign_bible"), // { campaignInput, centralConflict } - immutable once set; null until the Campaign Bible feature is used for this story
-  beatsTracker: jsonb("beats_tracker"), // [{ id, title, narrative, status }], status: pending|active|complete; null until a bible exists
-  villainPlanTracker: jsonb("villain_plan_tracker"), // { goal, awarenessOfPlayers, steps: [{step,description,status,resolution?,adaptedFrom?}] }; null until a bible exists
+  blueprint: jsonb("campaign_bible"), // { campaignInput, premise, milestones, openingSituation } - immutable once approved; null until a Blueprint exists (column name kept from the earlier "Campaign Bible" naming - see specs/campaign-situation.md)
+  situation: jsonb("situation"), // { objective, nextMove, antagonist: { move, awareness }, facts, activeMilestoneId, revision } - the DM's mutable working memory, rewritten after every turn; null until a Blueprint exists
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -48,6 +47,40 @@ export const messages = pgTable("messages", {
   role: text("role").notNull(), // 'user' | 'assistant'
   content: text("content").notNull(),
   authorUsername: text("author_username"), // real username, nullable (null for assistant/DM rows)
+  edited: boolean("edited").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Combat Encounters (specs/combat-encounters.md §4). A combat is a *mode of
+// a chapter*, not a conversation: a `combats` row attached to the chapter it
+// belongs to, with its own message table. Giving combat messages their own
+// table (rather than a combatId column on `messages`) keeps every existing
+// message rule - chapter lock, edit/delete lock-once-DM-replied, the cost
+// aggregate, last-message checks - untouched; combat messages need none of
+// them. At most one `active` combat per conversation (enforced in the
+// routes, not the schema). The resolved row is kept (context + summary, a
+// few KB) as the audit trail once its transcript is deleted.
+export const combats = pgTable("combats", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id")
+    .notNull()
+    .references(() => conversations.id),
+  status: text("status").notNull().default("active"), // 'active' | 'resolved'
+  context: jsonb("context").notNull(), // the start_combat handoff: { location, enemies: [{ name, description, motive?, notes?, statInputs, stats }], circumstances, objective, openingAction }
+  summary: jsonb("summary"), // the end_combat outcome once resolved: { outcome, objectiveAchieved, narrative, partyStatus, enemyStatus, consequences }
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+});
+
+export const combatMessages = pgTable("combat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  combatId: uuid("combat_id")
+    .notNull()
+    .references(() => combats.id),
+  sender: text("sender").notNull(),
+  role: text("role").notNull(), // 'user' | 'assistant'
+  content: text("content").notNull(),
+  authorUsername: text("author_username"), // real username, nullable (null for the combat DM's rows)
   edited: boolean("edited").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

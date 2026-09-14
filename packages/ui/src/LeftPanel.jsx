@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { renameConversation, deleteConversation } from "@roleplayer/core/api/conversations.js";
 import { renameStory } from "@roleplayer/core/api/stories.js";
+import { startCombat } from "@roleplayer/core/api/combats.js";
 import { groupConversations } from "@roleplayer/core/groupConversations.js";
 import { getChapterCostPercent, getChapterCostColor } from "./chapterCostIndicator.js";
 import NewChapterModal from "./NewChapterModal.jsx";
@@ -20,6 +21,10 @@ export default function LeftPanel({
   onDeleted,
   header,
   NewStoryModal,
+  // { id, conversationId } of the selected chapter's active combat, or null
+  // (lifted from ChatView via the app). Only ever known for the selected
+  // chapter, which is the only one whose menu offers combat controls anyway.
+  activeCombat = null,
 }) {
   const [openMenuId, setOpenMenuId] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
@@ -54,6 +59,19 @@ export default function LeftPanel({
       await renameConversation(id, name);
     }
     onRenamed();
+  }
+
+  // Admin manual override (specs/combat-encounters.md §5.1): for the DM that
+  // narrated a fight without flagging it. The combat-started event does the
+  // rest; only a failure needs surfacing here.
+  async function handleStartCombat(conversationId) {
+    setOpenMenuId(null);
+    if (!window.confirm("Start combat in this chapter? The DM will hand the current scene to the combat DM.")) return;
+    try {
+      await startCombat(conversationId);
+    } catch (err) {
+      window.alert(err.message);
+    }
   }
 
   async function handleDelete(conversation, label) {
@@ -128,6 +146,7 @@ export default function LeftPanel({
 
           const activeChapter = item.chapters[item.chapters.length - 1];
           const storyMenuKey = `story-${item.storyId}`;
+          const chapterInCombat = activeCombat?.conversationId === activeChapter.id;
 
           return (
             <li key={storyMenuKey} className="story-section">
@@ -168,6 +187,8 @@ export default function LeftPanel({
                       {isAdmin && (
                         <button
                           type="button"
+                          disabled={chapterInCombat}
+                          title={chapterInCombat ? "A combat is in progress - end it before starting a new chapter" : undefined}
                           onClick={() => {
                             setOpenMenuId(null);
                             setNewChapterFor(activeChapter.id);
@@ -223,6 +244,11 @@ export default function LeftPanel({
                           </button>
                           {openMenuId === c.id && (
                             <div className="menu-popover">
+                              {c.id === selectedConversationId && !activeCombat && (
+                                <button type="button" onClick={() => handleStartCombat(c.id)}>
+                                  ⚔ Start combat
+                                </button>
+                              )}
                               <button type="button" onClick={() => handleDelete(c, `${item.storyName} — ${c.name}`)}>
                                 Delete Chapter
                               </button>

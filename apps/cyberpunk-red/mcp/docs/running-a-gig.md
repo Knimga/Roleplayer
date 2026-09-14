@@ -32,7 +32,7 @@ Casing, gearing up, calling contacts, bribing, scouting the exit.
 
 - Something goes sideways, and it follows from the fiction: a third party, a guard out of place, the target already dead, a rival crew on the same job.
 - Combat is likely, not mandatory. A gig solved by talking or sneaking is a success.
-- Run fights per `combat.md`.
+- When a fight breaks out, hand it off with `start_combat` - the combat DM runs it, not you.
 - Escape is part of the job. Don't hand-wave the exit.
 - React to what players actually do. If a clever bypass works, let it, and move the tension elsewhere.
 

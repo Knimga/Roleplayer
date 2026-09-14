@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { submitRoll } from "./api/conversations";
+import { submitCombatRoll } from "@roleplayer/core/api/combats.js";
 
 const ROLL_TYPES = [
   { value: "SKILL_CHECK", label: "Skill Check", requiresFreeText: true },
@@ -12,7 +13,10 @@ const ROLL_TYPES = [
 
 const EMPTY_FORM = { rollType: "", modifier: "", freeText: "", numDice: "" };
 
-export default function DiceRoller({ conversationId }) {
+// While the chapter is in combat mode (activeCombatId set), rolls post to
+// the combat's own transcript instead of the chapter's - same math, same
+// message format, different table (specs/combat-encounters.md §5.3).
+export default function DiceRoller({ conversationId, activeCombatId = null }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState(null);
   const [rolling, setRolling] = useState(false);
@@ -46,12 +50,17 @@ export default function DiceRoller({ conversationId }) {
     setRolling(true);
     setError(null);
     try {
-      await submitRoll(conversationId, {
+      const payload = {
         rollType: form.rollType,
         modifier: Number(form.modifier),
         freeText: selectedType.requiresFreeText ? form.freeText.trim() : undefined,
         numDice: selectedType.requiresNumDice ? Number(form.numDice) : undefined,
-      });
+      };
+      if (activeCombatId) {
+        await submitCombatRoll(activeCombatId, payload);
+      } else {
+        await submitRoll(conversationId, payload);
+      }
       setForm(EMPTY_FORM);
     } catch (err) {
       setError(err.message);
@@ -81,13 +90,24 @@ export default function DiceRoller({ conversationId }) {
       {selectedType?.requiresNumDice && (
         <label>
           Number of d6
-          <input type="number" min="1" value={form.numDice} onChange={(e) => update("numDice", e.target.value)} />
+          <input
+            type="number"
+            min="1"
+            value={form.numDice}
+            onChange={(e) => update("numDice", e.target.value)}
+            onFocus={(e) => e.target.select()}
+          />
         </label>
       )}
 
       <label>
         Modifier
-        <input type="number" value={form.modifier} onChange={(e) => update("modifier", e.target.value)} />
+        <input
+          type="number"
+          value={form.modifier}
+          onChange={(e) => update("modifier", e.target.value)}
+          onFocus={(e) => e.target.select()}
+        />
       </label>
 
       {selectedType?.requiresFreeText && (

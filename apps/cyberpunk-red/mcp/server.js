@@ -27,7 +27,7 @@ export function createGameMcpServer() {
     {
       description: "Read the full contents of one lore/rules topic file by name.",
       inputSchema: {
-        filename: z.string().describe('Filename from list_lore_files, e.g. "combat.md"'),
+        filename: z.string().describe('Filename from list_lore_files, e.g. "skills.md"'),
       },
     },
     async ({ filename }) => {

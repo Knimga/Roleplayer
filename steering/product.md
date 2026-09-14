@@ -26,6 +26,19 @@ This monorepo hosts two shared web apps built on the same pattern: two players c
 - **Cyberpunk Red**: character name, Role (one of ten fixed roles), and Level (1-20).
 - **Laria 5e**: character name, Class, and Level (1-20).
 
+### Hidden DM Campaign
+
+- the admin user can provide input on a desired campaign plot, themes, or tone, and a campaign is generated with an antagonist and general storyline
+- main idea: the DM presents the problem, the players choose how to solve it
+- hidden campaign info guides DM responses so that an overall arc can be maintained and driven towards
+
+### Separate Combat DM
+
+- Since combat requires specific rules and workflows in each game, and since tactical turns generally do not affect the story or narrative, combat is handled by a miniature "sub-conversation" inside the main narrative
+- detailed lore/plot/narrative context is excluded here, and a new "combat DM" handles the combat via completely separate system prompts and MCP resources
+- once combat is concluded, a summary is returned to the main conversation and all the messages inside the combat are deleted
+- makes the narrative DM more effective, makes it easier to track storylines and campaign progression, and saves money on Claude API calls by using less context during combat
+
 ## Look & Feel
 
 Each app keeps its own distinct visual identity — this is deliberate, not an inconsistency to fix. Shared UI components (`packages/ui`) carry no styling of their own; each app's own `client/src/App.css` supplies different theme values for the same class/id hooks, so a shared component renders correctly differently in each app.

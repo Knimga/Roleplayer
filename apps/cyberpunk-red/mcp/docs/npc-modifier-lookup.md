@@ -6,7 +6,7 @@ STATs are for player characters only. Each NPC uses one **Combat Number** for bo
 - Defense: Combat Number + 1d10, when a player attacks them (dodge/parry).
 - Higher total wins; on a tie the DEFENDER wins.
 
-Hand the tier's Combat Number to the dice API as the modifier; the API rolls the d10. Pick a tier by how skilled/dangerous the enemy is, not by how tough — toughness is handled separately by the bruised/injured/critical/dead status ladder (see `combat.md`).
+Hand the tier's Combat Number to the dice API as the modifier; the API rolls the d10. Pick a tier by how skilled/dangerous the enemy is, not by how tough — toughness is handled separately by the bruised/injured/critical/dead status ladder the combat DM tracks.
 
 ## The Five Tiers
 

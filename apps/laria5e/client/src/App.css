@@ -868,27 +868,27 @@
   color: #1c1310;
 }
 
-.campaign-bible-modal {
+.campaign-management-modal {
   width: 640px;
   height: 600px;
   display: flex;
   flex-direction: column;
 }
 
-.campaign-bible-tab-content {
+.campaign-management-tab-content {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
 }
 
-.campaign-bible-tabs {
+.campaign-management-tabs {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border, #38281d);
   margin-bottom: 16px;
 }
 
-.campaign-bible-tabs button {
+.campaign-management-tabs button {
   font-family: var(--heading);
   font-size: 12px;
   font-weight: 600;
@@ -902,20 +902,20 @@
   cursor: pointer;
 }
 
-.campaign-bible-tabs button.active {
+.campaign-management-tabs button.active {
   color: var(--text-h);
   border-bottom-color: var(--accent);
 }
 
-.campaign-bible-tabs button.danger-tab {
+.campaign-management-tabs button.danger-tab {
   color: var(--danger);
 }
 
-.campaign-bible-tabs button.danger-tab.active {
+.campaign-management-tabs button.danger-tab.active {
   border-bottom-color: var(--danger);
 }
 
-.campaign-bible-tab-content.danger-zone {
+.campaign-management-tab-content.danger-zone {
   border: 1px solid var(--danger);
   border-radius: 3px;
   padding: 12px;
@@ -1810,3 +1810,74 @@
   opacity: 0.5;
 }
 
+/* Combat mode (specs/combat-encounters.md §5.5): the active fight's own
+   transcript renders after the chapter's messages, visually set off -
+   darker tint, a divider top and bottom - and vanishes when the fight ends,
+   replaced by the outcome message below. Same message styling inside. */
+#messages li.combat-block {
+  display: block;
+  margin: 8px 0 24px;
+  padding: 0 14px 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 3px;
+}
+
+.combat-divider {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.combat-divider-bottom {
+  justify-content: center;
+  padding: 4px 0 2px;
+  opacity: 0.6;
+}
+
+.combat-end-button {
+  font-size: 11px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.combat-end-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.combat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.combat-messages li.combat-empty {
+  font-size: 13px;
+  font-style: italic;
+  opacity: 0.6;
+  margin-bottom: 8px;
+}
+
+/* The outcome message that replaces a fight in the chapter transcript -
+   marked so players can find it again (Open Questions: "mark visually"). */
+#messages li.outcome .sender {
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+#messages li.outcome .bubble {
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}

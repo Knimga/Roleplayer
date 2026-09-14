@@ -1,26 +1,25 @@
 import { Router } from "express";
 import { eq, asc, desc, count, and, gt, ne, sql } from "drizzle-orm";
 import { db } from "../lib/db.js";
-import { conversations, messages, stories } from "../db/schema.js";
+import { conversations, messages, stories, combats, combatMessages } from "../db/schema.js";
 import { requireAuth } from "@roleplayer/server-core/requireAuth.js";
 import { users } from "@roleplayer/server-core/users.js";
 import { subscribe, publish } from "@roleplayer/server-core/broadcaster.js";
-import { generateReply, generateChapterSummary, runTrackerUpdatePass, runLeakCheckPass } from "../lib/claude.js";
-import { advanceBeatsTracker } from "@roleplayer/server-core/campaignBible.js";
+import { pendingReplies } from "@roleplayer/server-core/pendingReplies.js";
+import {
+  generateReply,
+  generateCombatHandoff,
+  generateChapterSummary,
+  runSituationPass,
+  runLeakCheckPass,
+} from "../lib/claude.js";
+import { getActiveMilestone, applySituationUpdate } from "@roleplayer/server-core/blueprint.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply, formatNewChapter } from "../lib/discordNotify.js";
-import { rollSkillCheck, rollGeneric, formatModifier, formatDiceBreakdown } from "../../mcp/dice.js";
+import { buildRollMessage } from "../lib/rollMessage.js";
+import { generateCoreStats } from "../lib/enemyStats.js";
 
 const router = Router();
 const MAX_CONVERSATIONS = 50;
-
-// Conversation ids currently generating a DM reply, or currently being
-// wound down into a new chapter — closes the race where two requests
-// arrive close together and both pass their "is this still valid?" check
-// before either finishes. Checked and added synchronously, before any
-// `await`, so there's no window for a second request to slip through.
-// In-memory is fine here for the same reason it's fine in broadcaster.js:
-// single server process, two users.
-const pendingReplies = new Set();
 
 const ROLES = [
   "Rockerboy",
@@ -107,6 +106,46 @@ async function assertActiveChapter(conversationId, conversation, res) {
     return false;
   }
   return true;
+}
+
+// Combat mode (specs/combat-encounters.md §4): while a chapter has an active
+// combat, all player traffic belongs to it and the narrative DM is off duty.
+// The invariants - one active combat per chapter; no narrative turn, player
+// message, roll, or chapter transition while one is active - are enforced
+// here at the route level rather than in the schema.
+async function findActiveCombat(conversationId) {
+  const [combat] = await db
+    .select({ id: combats.id, context: combats.context, createdAt: combats.createdAt })
+    .from(combats)
+    .where(and(eq(combats.conversationId, conversationId), eq(combats.status, "active")))
+    .limit(1);
+  return combat ?? null;
+}
+
+async function assertNoActiveCombat(conversationId, res) {
+  if (await findActiveCombat(conversationId)) {
+    res.status(409).json({ error: "A combat is in progress — this chapter is in combat mode until it ends." });
+    return false;
+  }
+  return true;
+}
+
+// Enters combat mode from a validated handoff (§5.1): every enemy's core
+// stats are computed server-side from this game's tables and stored in the
+// record before the first combat turn (§6), so the combat DM only ever
+// reads numbers, never derives them. The cut-in (the narrative DM's text up
+// to the instant violence broke out) is persisted by the caller as an
+// ordinary DM message first, so the chapter transcript reads cut-in, then
+// (later) outcome.
+async function startCombat(conversationId, handoff) {
+  const context = {
+    ...handoff,
+    enemies: handoff.enemies.map((enemy) => ({ ...enemy, stats: generateCoreStats(enemy.statInputs) })),
+  };
+  const [combat] = await db.insert(combats).values({ conversationId, context }).returning();
+  publish(conversationId, { type: "combat-started", combat: { id: combat.id, messages: [] } });
+  console.log(`[combat] started ${combat.id} in ${conversationId}: ${context.enemies.length} enemies - ${context.objective}`);
+  return combat;
 }
 
 // A conversation-scoped message is always attributed to the poster's
@@ -219,17 +258,6 @@ async function findModifiableMessage(conversationId, messageId, user, { allowAdm
 
   return { row };
 }
-
-// Server-side source of truth for what a roll type needs and looks like —
-// the frontend's disabled ROLL button is a convenience, this is the guard.
-const ROLL_TYPES = {
-  SKILL_CHECK: { label: "SKILL CHECK", sides: 10, requiresFreeText: true },
-  SKILL_CHECK_OPPOSING: { label: "SKILL CHECK (OPPOSING)", sides: 10, requiresFreeText: true },
-  ATTACK_MELEE: { label: "ATTACK ROLL (MELEE)", sides: 10, requiresFreeText: true },
-  ATTACK_RANGED: { label: "ATTACK ROLL (RANGED)", sides: 10, requiresFreeText: true },
-  DAMAGE: { label: "DAMAGE ROLL", sides: 6, requiresFreeText: true, requiresNumDice: true },
-  DEFENSE_MELEE: { label: "DEFENSE ROLL (MELEE)", sides: 10, requiresFreeText: false },
-};
 
 router.get("/", async (req, res) => {
   const rows = await db
@@ -383,6 +411,13 @@ router.delete("/:id", async (req, res) => {
   }
 
   await db.transaction(async (tx) => {
+    // Combat records hang off the chapter (resolved ones are kept as the
+    // audit trail), so they go with it - transcripts first for the FK.
+    const chapterCombats = await tx.select({ id: combats.id }).from(combats).where(eq(combats.conversationId, req.params.id));
+    for (const { id } of chapterCombats) {
+      await tx.delete(combatMessages).where(eq(combatMessages.combatId, id));
+    }
+    await tx.delete(combats).where(eq(combats.conversationId, req.params.id));
     await tx.delete(messages).where(eq(messages.conversationId, req.params.id));
     await tx.delete(conversations).where(eq(conversations.id, req.params.id));
 
@@ -409,6 +444,22 @@ router.get("/:id/messages", async (req, res) => {
     .where(eq(messages.conversationId, req.params.id))
     .orderBy(asc(messages.createdAt));
   res.json(rows);
+});
+
+// The chapter's active combat, if any, for the UI's combat block (§5.5) -
+// its id and transcript only. The handoff context (enemy stat blocks,
+// motives) is DM-side material and never leaves the server.
+router.get("/:id/combat", async (req, res) => {
+  const combat = await findActiveCombat(req.params.id);
+  if (!combat) {
+    return res.json({ combat: null });
+  }
+  const rows = await db
+    .select()
+    .from(combatMessages)
+    .where(eq(combatMessages.combatId, combat.id))
+    .orderBy(asc(combatMessages.createdAt));
+  res.json({ combat: { id: combat.id, messages: rows } });
 });
 
 router.get("/:id/events", (req, res) => {
@@ -463,6 +514,7 @@ router.post("/:id/messages", async (req, res) => {
     .where(eq(conversations.id, req.params.id));
 
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+  if (!(await assertNoActiveCombat(req.params.id, res))) return;
 
   const sender = resolveSender(conversation, req.user.username);
   const conversationName = conversation.storyId ? (conversation.storyName ?? conversation.name) : conversation.name;
@@ -755,12 +807,15 @@ router.post("/:id/new-chapter", async (req, res) => {
   const [story] = await db
     .select({
       name: stories.name,
-      campaignBible: stories.campaignBible,
-      beatsTracker: stories.beatsTracker,
+      blueprint: stories.blueprint,
+      situation: stories.situation,
     })
     .from(stories)
     .where(eq(stories.id, conversation.storyId));
   if (!(await assertActiveChapter(conversationId, conversation, res))) return;
+  // A chapter can't close mid-fight: the outcome message belongs in this
+  // chapter, and the summary would otherwise miss it.
+  if (!(await assertNoActiveCombat(conversationId, res))) return;
   if (pendingReplies.has(conversationId)) {
     return res.status(409).json({ error: "This chapter already has something in flight — hang tight." });
   }
@@ -817,26 +872,29 @@ router.post("/:id/new-chapter", async (req, res) => {
         sender: "System",
         content: "Begin the new chapter now — open with a scene that picks up from where the summary above leaves off.",
       };
-      const introText = await generateReply(
+      // A chapter can't open into a fight, so a start_combat handoff here
+      // is ignored - only the text is used (specs/combat-encounters.md §5.1).
+      const { text: introText } = await generateReply(
         [recap, kickoff],
         conversation.characterNames,
         conversation.characterDetails,
         conversation.characterDescriptions,
         conversation.characterGear,
         undefined,
-        story?.campaignBible ?? null,
-        story?.beatsTracker ?? null,
+        story?.blueprint ?? null,
+        story?.situation ?? null,
         () => publish(newChapter.id, { type: "status", text: "DM is rolling..." }),
       );
 
       await Promise.all([
-        maybeAdvanceBeat({
+        maybeUpdateSituation({
           storyId: conversation.storyId,
-          beatsTracker: story?.beatsTracker,
+          blueprint: story?.blueprint,
+          situation: story?.situation,
           history: [recap, kickoff],
           replyText: introText,
         }),
-        maybeCheckLeak({ beatsTracker: story?.beatsTracker, replyText: introText }),
+        maybeCheckLeak({ blueprint: story?.blueprint, situation: story?.situation, replyText: introText }),
       ]);
 
       const [intro] = await db
@@ -866,33 +924,13 @@ router.post("/:id/new-chapter", async (req, res) => {
 });
 
 router.post("/:id/roll", async (req, res) => {
-  const { rollType, modifier, freeText, numDice } = req.body ?? {};
-
-  const rollDef = ROLL_TYPES[rollType];
-  if (!rollDef) {
-    return res.status(400).json({ error: "Invalid roll type" });
+  // Roll validation, math and message format live in lib/rollMessage.js so
+  // the combat roll route produces identical messages.
+  const rollResult = buildRollMessage(req.body ?? {});
+  if (rollResult.error) {
+    return res.status(400).json({ error: rollResult.error });
   }
-  if (typeof modifier !== "number" || !Number.isInteger(modifier)) {
-    return res.status(400).json({ error: "A modifier is required" });
-  }
-  if (rollDef.requiresFreeText && (typeof freeText !== "string" || !freeText.trim())) {
-    return res.status(400).json({ error: "This roll requires a weapon/skill description" });
-  }
-  if (rollDef.requiresNumDice && (typeof numDice !== "number" || !Number.isInteger(numDice) || numDice < 1)) {
-    return res.status(400).json({ error: "Number of d6 is required for a damage roll" });
-  }
-
-  const effectiveNumDice = rollDef.requiresNumDice ? numDice : 1;
-  const isSkillCheckShape = effectiveNumDice === 1 && rollDef.sides === 10;
-  const { rolls, diceTotal, critResult } = isSkillCheckShape
-    ? rollSkillCheck()
-    : rollGeneric(effectiveNumDice, rollDef.sides);
-  const total = diceTotal + modifier;
-
-  const critSuffix = critResult === "success" ? " CRITICAL SUCCESS!" : critResult === "failure" ? " CRITICAL FAILURE!" : "";
-  const freeTextPart = rollDef.requiresFreeText ? ` (${freeText.trim()})` : "";
-  const breakdown = formatDiceBreakdown(rolls, rollDef.sides, critResult);
-  const content = `${rollDef.label}${freeTextPart} - ROLLED ${total}!${critSuffix} (${breakdown}${formatModifier(modifier)})`;
+  const { content } = rollResult;
 
   const [conversation] = await db
     .select({
@@ -907,6 +945,7 @@ router.post("/:id/roll", async (req, res) => {
     .where(eq(conversations.id, req.params.id));
 
   if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+  if (!(await assertNoActiveCombat(req.params.id, res))) return;
 
   const sender = resolveSender(conversation, req.user.username);
   const conversationName = conversation.storyId ? (conversation.storyName ?? conversation.name) : conversation.name;
@@ -969,75 +1008,126 @@ router.delete("/:id/messages/:messageId", async (req, res) => {
   res.status(204).end();
 });
 
-// Runs the tracker-update pass after narration is drafted, before it's
-// saved/published (specs/campaign-bible.md's Phase 3 decision (2) -
-// deliberately blocks, so the very next turn already sees updated beat
-// state rather than lagging a turn behind). No-op if the story has no
-// active beat (no Bible yet, or the arc is exhausted). Failures are logged
-// and swallowed, not thrown - a tracker-update problem shouldn't break the
-// player's turn.
-async function maybeAdvanceBeat({ storyId, beatsTracker, history, replyText }) {
-  if (!storyId || !beatsTracker) return;
-  const activeBeat = beatsTracker.find((b) => b.status === "active");
-  if (!activeBeat) return;
+// Runs the Situation pass after narration is drafted, before it's
+// saved/published (specs/campaign-situation.md §4.2) - deliberately blocks,
+// so the very next turn already reads the rewritten Situation rather than
+// lagging a turn behind. No-op if the story has no Blueprint. Failures are
+// logged and swallowed, not thrown: the previous Situation simply stands for
+// another turn (fail-open), and a pass problem never breaks the player's
+// turn.
+async function maybeUpdateSituation({ storyId, blueprint, situation, history, replyText }) {
+  if (!storyId || !blueprint?.premise || !situation) return;
 
   try {
-    // Last 20 total, most recent (the just-drafted reply, not yet
-    // persisted) last - see campaign-tracker-update-pass.md's Inputs.
-    const recentHistory = [...history.slice(-19), { role: "assistant", sender: "DM", content: replyText }];
-    const update = await runTrackerUpdatePass({ recentHistory, activeBeat });
-    if (!update) return;
+    // The latest exchange: every player message since the DM's previous
+    // reply (players often roleplay back and forth, or ask OOC questions,
+    // before prompting the DM), then the just-drafted reply (not yet
+    // persisted). Everything older is the previous Situation's job.
+    const lastReplyIndex = history.map((row) => row.role).lastIndexOf("assistant");
+    const exchange = [...history.slice(lastReplyIndex + 1), { role: "assistant", sender: "DM", content: replyText }];
 
-    const newBeatsTracker = advanceBeatsTracker(beatsTracker);
-    await db.update(stories).set({ beatsTracker: newBeatsTracker }).where(eq(stories.id, storyId));
+    const update = await runSituationPass({
+      previousSituation: situation,
+      premise: blueprint.premise,
+      activeMilestone: getActiveMilestone(blueprint, situation),
+      exchange,
+    });
+    const next = applySituationUpdate({ previous: situation, update, blueprint, milestoneReached: update.milestoneReached });
+    await db.update(stories).set({ situation: next }).where(eq(stories.id, storyId));
+    if (update.milestoneReached) {
+      console.log(`[situation] milestone advanced: ${situation.activeMilestoneId} -> ${next.activeMilestoneId ?? "(arc complete)"}`);
+    }
   } catch (err) {
-    console.error("Tracker-update pass failed (beat not advanced this turn):", err);
+    console.error("Situation pass failed (situation unchanged this turn):", err);
   }
 }
 
-// Runs alongside maybeAdvanceBeat (Promise.all at both call sites) - the two
-// passes are independent judgments over the same drafted response, so there's
-// no reason to make one wait on the other. Checks the response in isolation
-// against only the active beat's own content (no history, no Central
-// Conflict, no villain plan - see specs/campaign-bible.md §6). Detection
-// only for now: a leak is logged for visibility, not auto-rewritten - the
-// rewrite/retry mechanism is still an open design question (see Open
-// Questions in the spec), and shipping detection first lets that be designed
-// against real signal instead of guessed at.
-async function maybeCheckLeak({ beatsTracker, replyText }) {
-  if (!beatsTracker) return;
-  const activeBeat = beatsTracker.find((b) => b.status === "active");
-  if (!activeBeat) return;
+// Runs alongside maybeUpdateSituation (Promise.all at both call sites) - the
+// two passes are independent judgments over the same drafted response, so
+// there's no reason to make one wait on the other. Checks the response in
+// isolation against only the active milestone's own content. Detection
+// only: a leak is logged for visibility, not auto-rewritten - see
+// specs/campaign-situation.md §5.4.
+async function maybeCheckLeak({ blueprint, situation, replyText }) {
+  const activeMilestone = getActiveMilestone(blueprint, situation);
+  if (!activeMilestone) return;
 
   try {
-    await runLeakCheckPass({ replyText, activeBeat });
+    await runLeakCheckPass({ replyText, activeBeat: activeMilestone });
   } catch (err) {
     console.error("Leak-check pass failed (skipped this turn):", err);
   }
 }
 
-router.post("/:id/respond", async (req, res) => {
-  const conversationId = req.params.id;
+// Both passes over one drafted DM reply, run together since they're
+// independent judgments. Exported for the combats router, which runs them
+// once over the combat outcome message (specs/combat-encounters.md §5.4) -
+// the one exchange in which the Situation pass sees a fight.
+export function runNarrativePasses({ conversation, history, replyText }) {
+  return Promise.all([
+    maybeUpdateSituation({
+      storyId: conversation?.storyId,
+      blueprint: conversation?.blueprint,
+      situation: conversation?.situation,
+      history,
+      replyText,
+    }),
+    maybeCheckLeak({ blueprint: conversation?.blueprint, situation: conversation?.situation, replyText }),
+  ]);
+}
 
+const RESPOND_SELECT = {
+  characterNames: conversations.characterNames,
+  characterDetails: conversations.characterDetails,
+  characterDescriptions: conversations.characterDescriptions,
+  characterGear: conversations.characterGear,
+  characterHp: conversations.characterHp,
+  storyId: conversations.storyId,
+  createdAt: conversations.createdAt,
+  name: conversations.name,
+  storyName: stories.name,
+  blueprint: stories.blueprint,
+  situation: stories.situation,
+};
+
+async function loadRespondConversation(conversationId) {
   const [conversation] = await db
-    .select({
-      characterNames: conversations.characterNames,
-      characterDetails: conversations.characterDetails,
-      characterDescriptions: conversations.characterDescriptions,
-      characterGear: conversations.characterGear,
-      characterHp: conversations.characterHp,
-      storyId: conversations.storyId,
-      createdAt: conversations.createdAt,
-      name: conversations.name,
-      storyName: stories.name,
-      campaignBible: stories.campaignBible,
-      beatsTracker: stories.beatsTracker,
-    })
+    .select(RESPOND_SELECT)
     .from(conversations)
     .leftJoin(stories, eq(conversations.storyId, stories.id))
     .where(eq(conversations.id, conversationId));
+  return conversation;
+}
+
+async function loadHistory(conversationId) {
+  return db.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(asc(messages.createdAt));
+}
+
+// Persists a DM reply as the chapter's next message and closes out the
+// round. Shared by the ordinary reply and the combat cut-in.
+async function saveDmMessage(conversationId, content) {
+  const [saved] = await db.insert(messages).values({ conversationId, sender: "DM", role: "assistant", content }).returning();
+  await db
+    .update(conversations)
+    .set({
+      lastMessageAt: saved.createdAt,
+      // A reply closes out the round — both players' ready flags reset,
+      // regardless of who was or wasn't marked. The "created" publish
+      // below already triggers a refetch on every open client, so no
+      // separate character-updated broadcast is needed for this reset.
+      characterReady: Object.fromEntries(users.map((u) => [u.username, false])),
+    })
+    .where(eq(conversations.id, conversationId));
+  publish(conversationId, { type: "created", message: saved });
+  return saved;
+}
+
+router.post("/:id/respond", async (req, res) => {
+  const conversationId = req.params.id;
+  const conversation = await loadRespondConversation(conversationId);
 
   if (!(await assertActiveChapter(conversationId, conversation, res))) return;
+  if (!(await assertNoActiveCombat(conversationId, res))) return;
 
   const [lastMessage] = await db
     .select()
@@ -1058,62 +1148,92 @@ router.post("/:id/respond", async (req, res) => {
   publish(conversationId, { type: "generating" });
 
   try {
-    const history = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(asc(messages.createdAt));
+    const history = await loadHistory(conversationId);
 
-    const replyText = await generateReply(
+    const { text: replyText, combatHandoff } = await generateReply(
       history,
       conversation?.characterNames ?? null,
       conversation?.characterDetails ?? null,
       conversation?.characterDescriptions ?? null,
       conversation?.characterGear ?? null,
       conversation?.characterHp ?? null,
-      conversation?.campaignBible ?? null,
-      conversation?.beatsTracker ?? null,
+      conversation?.blueprint ?? null,
+      conversation?.situation ?? null,
       () => publish(conversationId, { type: "status", text: "DM is rolling..." }),
     );
 
-    await Promise.all([
-      maybeAdvanceBeat({
-        storyId: conversation?.storyId,
-        beatsTracker: conversation?.beatsTracker,
-        history,
-        replyText,
-      }),
-      maybeCheckLeak({ beatsTracker: conversation?.beatsTracker, replyText }),
-    ]);
+    // The cut-in is a real narrative event (violence broke out here), so the
+    // passes run over it like any other reply. If the DM emitted no text
+    // with the handoff, there's nothing to record or post - the combat
+    // simply starts.
+    if (replyText) {
+      await runNarrativePasses({ conversation, history, replyText });
+      await saveDmMessage(conversationId, replyText);
+      const conversationName = conversation?.storyId ? (conversation.storyName ?? conversation.name) : conversation?.name;
+      notifyOtherPlayer({ actorUsername: req.user.username, message: formatDmReply(conversationName, replyText) });
+    }
 
-    const [saved] = await db
-      .insert(messages)
-      .values({
-        conversationId,
-        sender: "DM",
-        role: "assistant",
-        content: replyText,
-      })
-      .returning();
-
-    await db
-      .update(conversations)
-      .set({
-        lastMessageAt: saved.createdAt,
-        // A reply closes out the round — both players' ready flags reset,
-        // regardless of who was or wasn't marked. The "created" publish
-        // below already triggers a refetch on every open client, so no
-        // separate character-updated broadcast is needed for this reset.
-        characterReady: Object.fromEntries(users.map((u) => [u.username, false])),
-      })
-      .where(eq(conversations.id, conversationId));
-
-    publish(conversationId, { type: "created", message: saved });
-    const conversationName = conversation?.storyId ? (conversation.storyName ?? conversation.name) : conversation?.name;
-    notifyOtherPlayer({ actorUsername: req.user.username, message: formatDmReply(conversationName, replyText) });
+    if (combatHandoff) {
+      await startCombat(conversationId, combatHandoff);
+    }
   } catch (err) {
     console.error("Failed to generate DM reply:", err);
     publish(conversationId, { type: "failed" });
+  } finally {
+    pendingReplies.delete(conversationId);
+  }
+});
+
+// Manual admin override (specs/combat-encounters.md §5.1): for the DM that
+// narrated a fight without flagging it. A dedicated narrative-DM call
+// produces the handoff from the scene as it stands, then combat mode
+// starts exactly as if start_combat had been called on a normal turn.
+router.post("/:id/combat/start", async (req, res) => {
+  if (!req.user.isAdmin) {
+    return res.status(403).json({ error: "Only the admin can start a combat manually" });
+  }
+  const conversationId = req.params.id;
+  const conversation = await loadRespondConversation(conversationId);
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Combat is only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(conversationId, conversation, res))) return;
+  if (!(await assertNoActiveCombat(conversationId, res))) return;
+  const history = await loadHistory(conversationId);
+  if (history.length === 0) {
+    return res.status(400).json({ error: "There's no scene yet to start a fight in." });
+  }
+  if (pendingReplies.has(conversationId)) {
+    return res.status(409).json({ error: "The DM is already replying — hang tight." });
+  }
+  pendingReplies.add(conversationId);
+  publish(conversationId, { type: "generating" });
+
+  try {
+    const { text, combatHandoff } = await generateCombatHandoff(
+      history,
+      conversation.characterNames,
+      conversation.characterDetails,
+      conversation.characterDescriptions,
+      conversation.characterGear,
+      conversation.characterHp,
+      conversation.blueprint,
+      conversation.situation,
+    );
+    if (text) {
+      await saveDmMessage(conversationId, text);
+    }
+    const combat = await startCombat(conversationId, combatHandoff);
+    res.status(201).json({ combat: { id: combat.id, messages: [] } });
+  } catch (err) {
+    // On success the combat-started event brings the spinner down
+    // client-side; on failure this does.
+    console.error("Failed to start combat manually:", err);
+    publish(conversationId, { type: "failed" });
+    res.status(502).json({ error: "Failed to start the combat — try again." });
   } finally {
     pendingReplies.delete(conversationId);
   }

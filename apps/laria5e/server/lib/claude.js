@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 import { users } from "@roleplayer/server-core/users.js";
 import { createChapterSummaryGenerator } from "@roleplayer/server-core/chapterSummary.js";
-import { createCampaignBibleGenerator, buildCampaignBibleContext } from "@roleplayer/server-core/campaignBible.js";
-import { createTrackerUpdatePass } from "@roleplayer/server-core/campaignTrackerUpdate.js";
+import { createBlueprintGenerator, buildBlueprintContext, buildSituationContext } from "@roleplayer/server-core/blueprint.js";
+import { createSituationPass } from "@roleplayer/server-core/situationPass.js";
 import { createLeakCheckPass } from "@roleplayer/server-core/leakCheck.js";
 import { loadDmSystemPromptCore } from "@roleplayer/server-core/dmSystemPromptCore.js";
+import { buildStartCombatTool, validateHandoff, createCombatGenerator } from "@roleplayer/server-core/combat.js";
 import { getMcpTools, callMcpTool } from "./mcpClient.js";
+import { statInputsSchema, adHocLookups } from "./enemyStats.js";
 
 const MAX_TOOL_ROUNDTRIPS = 5;
 
@@ -19,20 +21,39 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =
   process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
-// Cheap and fast on purpose - shared by the tracker-update and leak-check
-// passes, both bounded true/false-style judgments (see
-// campaign-tracker-update-pass.md / leak-check-pass.md), not narration or
-// open-ended reasoning. Tracker-update originally ran on MODEL - switched
-// here after real usage showed that was adding a full Sonnet/Opus-tier call
-// to every single DM turn just to re-read a 20-message window.
+// Cheap and fast on purpose - shared by the situation and leak-check passes
+// (see situation-pass.md / leak-check-pass.md): bounded, structured
+// judgments, not narration or open-ended reasoning.
 const REVIEW_PASS_MODEL = process.env.ANTHROPIC_REVIEW_PASS_MODEL || "claude-haiku-4-5-20251001";
-// Always Sonnet, no dev/prod branch - Bible creation is a one-off,
+// Milestone advancement is irreversible, so when the cheap pass proposes one
+// the rewrite is re-run on this model and its verdict is what's used (see
+// specs/campaign-situation.md §4.2). Always Sonnet, no dev/prod branch.
+const SITUATION_ESCALATION_MODEL = process.env.ANTHROPIC_SITUATION_ESCALATION_MODEL || "claude-sonnet-5";
+// Always Sonnet, no dev/prod branch - Blueprint creation is a one-off,
 // infrequent, admin-triggered generation, not a per-turn cost like
 // narration, so the Opus-in-prod tiering MODEL otherwise uses doesn't apply
 // here.
-const BIBLE_MODEL = process.env.ANTHROPIC_BIBLE_MODEL || "claude-sonnet-5";
+const BLUEPRINT_MODEL = process.env.ANTHROPIC_BLUEPRINT_MODEL || "claude-sonnet-5";
+// Always Sonnet, no dev/prod branch (specs/combat-encounters.md §5.3.3 and
+// its Open Questions): tactical narration is more structured than open
+// narrative, combat turns are the most frequent calls in a session, and
+// Opus-in-prod wasn't buying anything there.
+const COMBAT_MODEL = process.env.ANTHROPIC_COMBAT_MODEL || "claude-sonnet-5";
 const TONE_PROMPT_PATH = fileURLToPath(new URL("../config/laria-system-prompt.md", import.meta.url));
 const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/laria-reference-files.md", import.meta.url));
+const COMBAT_PROMPT_PATH = fileURLToPath(new URL("../config/laria-combat-system-prompt.md", import.meta.url));
+
+// The narrative DM's terminal handoff into combat mode, with this game's own
+// enemy stat inputs composed into its schema (specs/combat-encounters.md
+// §5.2, §6).
+const START_COMBAT_TOOL = buildStartCombatTool({ statInputsSchema });
+
+// This app's combat mechanics prompt - tone plus this game's numbers, with
+// the always-needed mechanical docs baked in (§5.3.2). Read fresh per call
+// like every other prompt here.
+function loadCombatSystemPrompt() {
+  return readFileSync(COMBAT_PROMPT_PATH, "utf-8").trim();
+}
 
 // Read fresh on every call rather than cached at startup, so editing any of
 // the three prompt fragments takes effect on the next reply with no server
@@ -60,7 +81,7 @@ function loadSystemPrompt() {
 // maps — each appended as its own block via `formatFieldBlock`, skipping
 // anyone who hasn't saved one, so an empty party doesn't add empty noise to
 // every prompt.
-function formatFieldBlock(heading, characterNames, fieldValues) {
+export function formatFieldBlock(heading, characterNames, fieldValues) {
   const lines = Object.entries(characterNames)
     .map(([username, name]) => [name, fieldValues?.[username]])
     .filter(([, value]) => value)
@@ -80,7 +101,7 @@ function computeWoundState(current, max) {
   return "Mortally Wounded";
 }
 
-function buildPlayerRoster(characterNames, characterDetails, characterDescriptions, characterGear, characterHp) {
+export function buildPlayerRoster(characterNames, characterDetails, characterDescriptions, characterGear, characterHp) {
   if (!characterNames) {
     return `The two players are ${users.map((u) => u.username).join(" and ")}.`;
   }
@@ -112,29 +133,36 @@ function buildPlayerRoster(characterNames, characterDetails, characterDescriptio
 
 const CACHE_CONTROL = { type: "ephemeral" };
 
-export async function generateReply(
+// Everything generateReply and generateCombatHandoff share: the four system
+// tiers and the cached, windowed message history. Kept as one builder so the
+// manual "Start combat" override sees exactly the scene the narrative DM
+// would have.
+function buildNarrationRequest({
   history,
-  characterNames = null,
-  characterDetails = null,
-  characterDescriptions = null,
-  characterGear = null,
-  characterHp = null,
-  campaignBible = null,
-  beatsTracker = null,
-  onDiceRoll = null,
-) {
-  // Three independently-cached tiers (see specs/campaign-bible.md §4.2), not
-  // one block: tier 1 (this app's static DM instructions) almost never
-  // changes: tier 2 (Campaign Bible state, if this Story has one) changes
-  // only when a beat update actually fires; tier 3 (player roster - health,
-  // etc.) can change every single turn. Splitting them lets a tier-3-only
-  // change (the common case) still hit the tier 1+2 cache, instead of
-  // invalidating everything on every request.
+  characterNames,
+  characterDetails,
+  characterDescriptions,
+  characterGear,
+  characterHp,
+  blueprint,
+  situation,
+}) {
+  // Four tiers (see specs/campaign-situation.md §4.1): tier 1 (this app's
+  // static DM instructions) almost never changes; tier 2 (premise + active
+  // milestone) changes only on milestone advance; both are cached with their
+  // own breakpoints. Tier 3 (the Situation) is rewritten every turn and tier
+  // 4 (player roster - health, etc.) can change every turn, so both sit
+  // after the cached tiers, uncached - a per-turn change there never
+  // invalidates tiers 1-2.
   const system = [{ type: "text", text: loadSystemPrompt(), cache_control: CACHE_CONTROL }];
 
-  const bibleContext = buildCampaignBibleContext({ campaignBible, beatsTracker });
-  if (bibleContext) {
-    system.push({ type: "text", text: bibleContext, cache_control: CACHE_CONTROL });
+  const blueprintContext = buildBlueprintContext({ blueprint, situation });
+  if (blueprintContext) {
+    system.push({ type: "text", text: blueprintContext, cache_control: CACHE_CONTROL });
+  }
+  const situationContext = buildSituationContext(situation);
+  if (situationContext) {
+    system.push({ type: "text", text: situationContext });
   }
 
   system.push({
@@ -142,15 +170,11 @@ export async function generateReply(
     text: buildPlayerRoster(characterNames, characterDetails, characterDescriptions, characterGear, characterHp),
   });
 
-  const tools = await getMcpTools();
-  if (tools.length > 0) {
-    tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_CONTROL };
-  }
-
-  const messages = toAnthropicMessages(history);
+  const messages = toAnthropicMessages(windowHistory(history));
   // Cache everything through the prior exchange — only the newest turn (and
-  // this call's reply) needs to be processed fresh each time, since the
-  // full transcript gets resent on every "Ask the DM" click.
+  // this call's reply) needs to be processed fresh each time. windowHistory
+  // trims in chunks precisely so this cached prefix stays stable across
+  // many consecutive turns.
   if (messages.length > 1) {
     const idx = messages.length - 2;
     messages[idx] = {
@@ -159,24 +183,98 @@ export async function generateReply(
     };
   }
 
+  return { system, messages };
+}
+
+function extractText(response) {
+  return response.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim();
+}
+
+// Returns { text, combatHandoff }. `combatHandoff` is null on an ordinary
+// turn; when the DM called start_combat it's the validated handoff and
+// `text` is the cut-in - narration up to the instant violence breaks out
+// (specs/combat-encounters.md §5.1). start_combat is terminal: the loop ends
+// there, nothing after the cut is resolved by this DM.
+export async function generateReply(
+  history,
+  characterNames = null,
+  characterDetails = null,
+  characterDescriptions = null,
+  characterGear = null,
+  characterHp = null,
+  blueprint = null,
+  situation = null,
+  onDiceRoll = null,
+) {
+  const { system, messages } = buildNarrationRequest({
+    history,
+    characterNames,
+    characterDetails,
+    characterDescriptions,
+    characterGear,
+    characterHp,
+    blueprint,
+    situation,
+  });
+
+  // The tool list is a cached prefix too, so its order must be stable:
+  // MCP tools in the order the server lists them, then start_combat last
+  // with the breakpoint.
+  const tools = [...(await getMcpTools()), START_COMBAT_TOOL];
+  tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_CONTROL };
+
   for (let round = 0; round < MAX_TOOL_ROUNDTRIPS; round++) {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 1024,
+      // A ceiling, not a target - prose length is governed by the prompt.
+      // Raised from 1024 because a start_combat handoff (battlefield, every
+      // enemy, circumstances, objective, opening action) on top of the
+      // cut-in text was observed truncating at 1024, which surfaced as
+      // "incomplete handoff" tool errors and cost two extra roundtrips.
+      max_tokens: 2048,
       system,
       messages,
       tools,
     });
+    if (response.stop_reason === "max_tokens") {
+      console.warn(`[narration] round ${round}: hit max_tokens - response was truncated`);
+    }
 
     const toolUses = response.content.filter((block) => block.type === "tool_use");
     if (toolUses.length === 0) {
-      const text = response.content
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("");
       // Guards against the rare empty completion (model variance, not
       // specific to tool use) so a blank message never lands in the chat.
-      return text.trim() || "The DM pauses for a moment, gathering their thoughts — try asking again.";
+      return {
+        text: extractText(response) || "The DM pauses for a moment, gathering their thoughts — try asking again.",
+        combatHandoff: null,
+      };
+    }
+
+    const startCall = toolUses.find((t) => t.name === "start_combat");
+    if (startCall) {
+      const { errors, value } = validateHandoff(startCall.input);
+      if (errors.length === 0) {
+        return { text: extractText(response), combatHandoff: value };
+      }
+      // Incomplete - reject it as a tool error and let the DM retry with a
+      // full handoff rather than dropping the players into a fight with
+      // half a battlefield. Any other tool calls in the same response are
+      // dropped: the turn is ending at the cut.
+      console.warn(`[combat] start_combat rejected: ${errors.join("; ")}`);
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({
+        role: "user",
+        content: toolUses.map((t) =>
+          t.id === startCall.id
+            ? { type: "tool_result", tool_use_id: t.id, content: `Incomplete - ${errors.join("; ")}. Call start_combat again with every field.`, is_error: true }
+            : { type: "tool_result", tool_use_id: t.id, content: "Skipped - combat is starting.", is_error: true },
+        ),
+      });
+      continue;
     }
 
     // Claude wants to look something up (e.g. a lore file via the MCP
@@ -204,8 +302,64 @@ export async function generateReply(
     messages.push({ role: "user", content: toolResults });
   }
 
-  return "The DM got lost in their notes and couldn't finish that thought — try asking again.";
+  return { text: "The DM got lost in their notes and couldn't finish that thought — try asking again.", combatHandoff: null };
 }
+
+// Manual "Start combat" override (specs/combat-encounters.md §5.1): the
+// narrative DM's only job is to produce the handoff from the scene as it
+// stands, with start_combat forced and no other tools. For the DM that
+// narrated a fight without flagging it. With a forced tool call the model
+// usually emits no text, so `text` is often empty here - the caller skips
+// the cut-in message in that case.
+export async function generateCombatHandoff(
+  history,
+  characterNames = null,
+  characterDetails = null,
+  characterDescriptions = null,
+  characterGear = null,
+  characterHp = null,
+  blueprint = null,
+  situation = null,
+) {
+  const { system, messages } = buildNarrationRequest({
+    history,
+    characterNames,
+    characterDetails,
+    characterDescriptions,
+    characterGear,
+    characterHp,
+    blueprint,
+    situation,
+  });
+  messages.push({
+    role: "user",
+    content:
+      "System: The admin has declared that combat has begun in the current scene. Call start_combat now with the handoff built from the scene as it stands. The players' most recent declared hostile action (or, if none was declared, the enemies' first move) is the opening action; leave it unresolved.",
+  });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    system,
+    messages,
+    tools: [START_COMBAT_TOOL],
+    tool_choice: { type: "tool", name: "start_combat" },
+  });
+  const call = response.content.find((block) => block.type === "tool_use" && block.name === "start_combat");
+  if (!call) throw new Error("Combat handoff produced no start_combat call");
+  const { errors, value } = validateHandoff(call.input);
+  if (errors.length > 0) throw new Error(`Combat handoff was incomplete: ${errors.join("; ")}`);
+  return { text: extractText(response), combatHandoff: value };
+}
+
+export const { generateCombatReply, generateCombatEnd } = createCombatGenerator({
+  client,
+  model: COMBAT_MODEL,
+  getMcpTools,
+  callMcpTool,
+  loadCombatSystemPrompt,
+  adHocLookups,
+});
 
 export const generateChapterSummary = createChapterSummaryGenerator({
   client,
@@ -213,17 +367,38 @@ export const generateChapterSummary = createChapterSummaryGenerator({
   gameLabel: "DnD campaign in the homebrew world of Laria",
 });
 
-export const generateCampaignBible = createCampaignBibleGenerator({
+export const generateBlueprint = createBlueprintGenerator({
   client,
-  model: BIBLE_MODEL,
+  model: BLUEPRINT_MODEL,
   gameLabel: "DnD campaign in the homebrew world of Laria",
   getMcpTools,
   callMcpTool,
 });
 
-export const runTrackerUpdatePass = createTrackerUpdatePass({ client, model: REVIEW_PASS_MODEL });
+export const runSituationPass = createSituationPass({
+  client,
+  model: REVIEW_PASS_MODEL,
+  escalationModel: SITUATION_ESCALATION_MODEL,
+});
 
 export const runLeakCheckPass = createLeakCheckPass({ client, model: REVIEW_PASS_MODEL });
+
+// Bounded recent window (specs/campaign-situation.md §4.3). Hysteresis, not a
+// sliding window: nothing is trimmed until the chapter exceeds WINDOW_MAX
+// messages, then it's cut back to the last WINDOW_MIN. A window that slid by
+// one message every turn would change the cached prefix every turn and cost
+// more than sending the full history, not less; trimming in chunks keeps the
+// prefix stable for ~10 turns at a time. The API requires the first message
+// to be a user turn, so any DM rows left at the front after trimming are
+// dropped too. Anything trimmed away is the Situation's job to remember.
+const WINDOW_MIN = 30;
+const WINDOW_MAX = 40;
+function windowHistory(history) {
+  let rows = history.length > WINDOW_MAX ? history.slice(-WINDOW_MIN) : history;
+  const firstUser = rows.findIndex((r) => r.role === "user");
+  if (firstUser > 0) rows = rows.slice(firstUser);
+  return rows;
+}
 
 // The Anthropic API requires strictly alternating user/assistant turns, but
 // both players share role "user" — merge consecutive same-role DB rows into
