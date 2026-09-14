@@ -27,7 +27,7 @@ export function createGameMcpServer() {
     {
       description: "Read the full contents of one docs/rules topic file by name.",
       inputSchema: {
-        filename: z.string().describe('Filename from list_docs, e.g. "index.md"'),
+        filename: z.string().describe('Filename from list_docs, e.g. "regions.md"'),
       },
     },
     async ({ filename }) => {

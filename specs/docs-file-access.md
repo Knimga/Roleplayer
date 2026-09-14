@@ -16,9 +16,9 @@ An MCP server exposes local `.md` files within each app's own `mcp/docs/` folder
 ## File Organization
 ```
 mcp/docs/
-├── combat.md
 ├── skills.md
 ├── factions.md
+├── gear.md
 └── ...          # one flat file per topic — no subfolders
 ```
 Flat-file convention adopted for both apps; cyberpunk-red's docs were migrated from an earlier nested-subfolder, `.txt`-based layout (`mcp/lore/*.txt`) to match.
@@ -31,7 +31,7 @@ Flat-file convention adopted for both apps; cyberpunk-red's docs were migrated f
 - **Path resolution is containment-checked, not `basename`-stripped**: the read tool resolves the model-supplied filename with `path.join`/`path.resolve` against the docs directory and verifies the result still falls inside it, rather than assuming a bare filename — fails closed against a traversal attempt (e.g. `../../.env`) without depending on the model never sending one.
 - **No chunking/indexing** — files are read and returned whole. Premature to optimize before there's real content to see if it's even a problem.
 - **Deployment**: not local-only — the MCP server runs as part of the same backend process, so it travels with it (local now, Render later, per [tech.md](../steering/tech.md)). `mcp/docs/*.md` are ordinary repo files, deployed alongside the app code like everything else.
-- **Content**: each app's actual `.md` files are provided by the user, one flat file per topic — this feature ships with the folder and server ready to read whatever's dropped in, not placeholder/invented content. cyberpunk-red's folder is populated; laria5e's is currently just a placeholder (`index.md`), ready for real content later.
+- **Content**: each app's actual `.md` files are provided by the user, one flat file per topic — this feature ships with the folder and server ready to read whatever's dropped in, not placeholder/invented content. Both apps' folders are now populated with real content (laria5e's initial `index.md` placeholder is gone — its per-doc "when to use it" hooks were folded into `laria-reference-files.md` directly, matching cyberpunk-red's always-loaded list rather than a separate on-demand-fetched index; see that file's git history for the prior approach).
 
 ## Open Questions
 Whether to unify the two apps' tool names (`list_lore_files`/`read_lore_file` vs `list_docs`/`read_doc`) — functionally identical, purely a naming cleanup, not yet requested.
