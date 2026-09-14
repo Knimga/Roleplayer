@@ -44,8 +44,14 @@ const REFERENCE_FILES_PATH = fileURLToPath(new URL("../config/cyberpunk-referenc
 
 // The narrative DM's terminal handoff into combat mode, with this game's own
 // per-enemy schema composed in (see packages/server-core/src/combat/README.md
-// and ../combat/enemy-schema.js).
-const START_COMBAT_TOOL = buildStartCombatTool({ enemySchema: combatGame.enemySchema });
+// and ../combat/enemy-schema.js). Built per call, not once at startup: its
+// description is prompts/combat-handoff.md, and like every other prompt
+// here an edit should take effect on the next turn without a restart. The
+// content is identical between edits, so the cached tools prefix is
+// unaffected.
+function startCombatTool() {
+  return buildStartCombatTool({ enemySchema: combatGame.enemySchema });
+}
 
 // Read fresh on every call rather than cached at startup, so editing any of
 // the three prompt fragments takes effect on the next reply with no server
@@ -216,7 +222,7 @@ export async function generateReply(
   // The tool list is a cached prefix too, so its order must be stable:
   // MCP tools in the order the server lists them, then start_combat last
   // with the breakpoint.
-  const tools = [...(await getMcpTools()), START_COMBAT_TOOL];
+  const tools = [...(await getMcpTools()), startCombatTool()];
   tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_CONTROL };
 
   for (let round = 0; round < MAX_TOOL_ROUNDTRIPS; round++) {
@@ -334,7 +340,7 @@ export async function generateCombatHandoff(
     max_tokens: 2048,
     system,
     messages,
-    tools: [START_COMBAT_TOOL],
+    tools: [startCombatTool()],
     tool_choice: { type: "tool", name: "start_combat" },
   });
   const call = response.content.find((block) => block.type === "tool_use" && block.name === "start_combat");
