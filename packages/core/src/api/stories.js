@@ -6,6 +6,18 @@ async function parseErrorOr(res, fallback) {
   return error ?? fallback;
 }
 
+async function postJson(url, body, fallback) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    credentials: "include",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const error = await parseErrorOr(res, fallback);
+  if (error) throw new Error(error);
+  return res.json();
+}
+
 export async function renameStory(storyId, name) {
   const res = await fetch(`${API_BASE}/${storyId}`, {
     method: "PATCH",
@@ -18,59 +30,44 @@ export async function renameStory(storyId, name) {
   return res.json();
 }
 
-// Generates a fresh Campaign Bible draft - NOT persisted. See approveCampaignBible.
-export async function generateCampaignBible(storyId, campaignInput) {
-  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/generate`, {
-    method: "POST",
+// Generates a fresh Blueprint draft - NOT persisted. See approveBlueprint.
+export function generateBlueprint(storyId, campaignInput) {
+  return postJson(`${API_BASE}/${storyId}/blueprint/generate`, { campaignInput }, "Failed to generate Blueprint");
+}
+
+// Persists the (possibly admin-edited) draft and seeds the Situation from
+// its openingSituation. Returns { blueprint, situation }.
+export function approveBlueprint(storyId, blueprint) {
+  return postJson(`${API_BASE}/${storyId}/blueprint/approve`, blueprint, "Failed to create Blueprint");
+}
+
+// Read-only fetch for the admin tabs. Returns { blueprint, situation }.
+export async function getBlueprint(storyId) {
+  const res = await fetch(`${API_BASE}/${storyId}/blueprint`, { credentials: "include" });
+  const error = await parseErrorOr(res, "Failed to load Blueprint");
+  if (error) throw new Error(error);
+  return res.json();
+}
+
+// Admin edit of the Situation's rewritable fields. Returns { situation }.
+export async function updateSituation(storyId, fields) {
+  const res = await fetch(`${API_BASE}/${storyId}/situation`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ campaignInput }),
+    body: JSON.stringify(fields),
   });
-  const error = await parseErrorOr(res, "Failed to generate Campaign Bible");
+  const error = await parseErrorOr(res, "Failed to update Situation");
   if (error) throw new Error(error);
   return res.json();
 }
 
-// Persists the (possibly admin-edited) generated draft and initializes both trackers.
-export async function approveCampaignBible(storyId, bible) {
-  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/approve`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(bible),
-  });
-  const error = await parseErrorOr(res, "Failed to create Campaign Bible");
-  if (error) throw new Error(error);
-  return res.json();
+// Manual admin override for the Milestones tab - one milestone forward or
+// back. Both return the updated { situation }.
+export function advanceMilestone(storyId) {
+  return postJson(`${API_BASE}/${storyId}/blueprint/milestones/advance`, undefined, "Failed to advance milestone");
 }
 
-// Read-only fetch for the viewing tabs (Bible Text, Beats).
-export async function getCampaignBible(storyId) {
-  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible`, { credentials: "include" });
-  const error = await parseErrorOr(res, "Failed to load Campaign Bible");
-  if (error) throw new Error(error);
-  return res.json();
-}
-
-// Manual admin override for the Beats tab - advance/un-advance one beat at
-// a time, same effect the automatic tracker-update pass has, just admin-
-// triggered. Both return the updated { beatsTracker }.
-export async function advanceBeats(storyId) {
-  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/beats/advance`, {
-    method: "POST",
-    credentials: "include",
-  });
-  const error = await parseErrorOr(res, "Failed to advance beat");
-  if (error) throw new Error(error);
-  return res.json();
-}
-
-export async function revertBeats(storyId) {
-  const res = await fetch(`${API_BASE}/${storyId}/campaign-bible/beats/revert`, {
-    method: "POST",
-    credentials: "include",
-  });
-  const error = await parseErrorOr(res, "Failed to revert beat");
-  if (error) throw new Error(error);
-  return res.json();
+export function revertMilestone(storyId) {
+  return postJson(`${API_BASE}/${storyId}/blueprint/milestones/revert`, undefined, "Failed to revert milestone");
 }
