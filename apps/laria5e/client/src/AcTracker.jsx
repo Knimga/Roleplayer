@@ -50,6 +50,7 @@ export default function AcTracker({ conversationId, ac, onSaved }) {
           className="ac-input"
           value={draft}
           onChange={handleChange}
+          onFocus={(e) => e.target.select()}
           onBlur={commit}
           onKeyDown={(e) => e.key === "Enter" && e.target.blur()}
         />

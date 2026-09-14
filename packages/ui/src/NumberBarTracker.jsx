@@ -59,6 +59,10 @@ export default function NumberBarTracker({ conversationId, label, value, colorCl
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
+          // autoFocus alone places the cursor without selecting - select the
+          // whole value on focus so clicking the number lets you just type
+          // over it, no manual select/backspace needed.
+          onFocus={(e) => e.target.select()}
           onBlur={() => commit(field)}
           onKeyDown={(e) => {
             if (e.key === "Enter") commit(field);

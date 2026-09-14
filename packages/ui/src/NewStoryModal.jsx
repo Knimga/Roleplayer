@@ -106,6 +106,7 @@ export default function NewStoryModal({ onCreated, onCancel, detailField, detail
                   max="20"
                   value={details[u.username]?.level ?? ""}
                   onChange={(e) => updateDetail(u.username, "level", e.target.value)}
+                  onFocus={(e) => e.target.select()}
                 />
               </label>
             </div>
