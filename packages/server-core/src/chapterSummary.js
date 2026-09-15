@@ -49,16 +49,27 @@ export function createChapterSummaryGenerator({ client, model, gameLabel }) {
 
     const response = await client.messages.create({
       model,
-      max_tokens: 1500,
+      // A ceiling, not a target. The summary itself is a few hundred tokens,
+      // but on Opus/Sonnet 5 adaptive thinking is on by default and its
+      // tokens count against this cap - at 1500 a long chapter produced only
+      // the first section before the cap hit. Generous so thinking never
+      // eats the output.
+      max_tokens: 8000,
       system: systemText,
       messages: [{ role: "user", content: `Here is the chapter transcript:\n\n${transcript}` }],
     });
 
-    const text = response.content
+    let text = response.content
       .filter((block) => block.type === "text")
       .map((block) => block.text)
-      .join("");
+      .join("")
+      .trim();
 
-    return text.trim() || "The chapter's events could not be summarized automatically — please write one manually.";
+    if (response.stop_reason === "max_tokens") {
+      console.warn(`[chapter-summary] hit max_tokens - summary was truncated (${text.length} chars of text)`);
+      text += "\n\n(This summary was cut short — close and reopen to regenerate.)";
+    }
+
+    return text || "The chapter's events could not be summarized automatically — please write one manually.";
   };
 }

@@ -11,6 +11,11 @@ import { loadCombatDmCore, buildCombatContext } from "./context.js";
 // roll_dice calls, but a cautious model that makes them one at a time must
 // not hit this wall mid-phase.
 const MAX_TOOL_ROUNDTRIPS = 16;
+// A ceiling, not a target: a combat beat is a few hundred tokens, but on
+// Sonnet/Opus 5 adaptive thinking is on by default and its tokens count
+// against this cap. 1500 left a long Enemy Phase one thought away from
+// truncation; the chapter summary hit exactly that in production.
+const MAX_OUTPUT_TOKENS = 6000;
 const CACHE_CONTROL = { type: "ephemeral" };
 const EMPTY_REPLY_FALLBACK = "The combat DM pauses, reading the field — ask again.";
 
@@ -178,7 +183,10 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
     const enemyUpdates = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDTRIPS; round++) {
-      const response = await client.messages.create({ model, max_tokens: 1500, system, messages, tools });
+      const response = await client.messages.create({ model, max_tokens: MAX_OUTPUT_TOKENS, system, messages, tools });
+      if (response.stop_reason === "max_tokens") {
+        console.warn(`[combat] round ${round}: hit max_tokens - response was truncated`);
+      }
       const toolUses = response.content.filter((block) => block.type === "tool_use");
 
       if (toolUses.length === 0) {
@@ -245,7 +253,7 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
     });
     const response = await client.messages.create({
       model,
-      max_tokens: 1500,
+      max_tokens: MAX_OUTPUT_TOKENS,
       system,
       messages,
       tools: [END_COMBAT_TOOL],
