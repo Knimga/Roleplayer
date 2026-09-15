@@ -9,11 +9,11 @@ A dice-roller panel on the right side of the app (mirroring the conversation sid
 ## Requirements
 - [x] A new vertical panel on the right side of the layout, mirroring the left sidebar's dimensions (width, height, border treatment)
 - [x] The dice roller sits at the top of this panel
-- [x] Player selects a roll type: Skill Check, Skill Check (Opposing), Attack Roll (Melee), Attack Roll (Ranged), Damage Roll, Defense Roll (Melee)
+- [x] Player selects a roll type: Skill Check, Skill Check (Opposing), Attack Roll (Melee), Attack Roll (Ranged), Damage Roll, Evasion (Melee)
 - [x] Every roll type uses 1d10 except Damage Roll, which uses d6
 - [x] Damage Roll additionally requires the player to specify how many d6 to roll
 - [x] Player must enter a single modifier (integer) — required for every roll type, and the field can't be left blank even for a modifier of 0
-- [x] Player must enter free text describing the weapon or skill used — required for every roll type *except* Defense Roll (Melee); no validation beyond "not empty"
+- [x] Player must enter free text describing the weapon or skill used — required for every roll type *except* Evasion (Melee); no validation beyond "not empty"
 - [x] The ROLL button stays disabled until every field required for the currently-selected roll type is filled in
 - [x] Rolling requires an active (selected) conversation — there's nowhere to post the result otherwise
 - [x] Pressing ROLL performs the roll and immediately posts a formatted result as a new message from that player in the current conversation — no separate preview/confirm step
@@ -24,7 +24,7 @@ A dice-roller panel on the right side of the app (mirroring the conversation sid
 `{ROLL TYPE LABEL} ({FREE TEXT}) - ROLLED {total}!{ " CRITICAL!" | " CRITICAL FAILURE!" | "" } ({dice breakdown} + {modifier})`, e.g.:
 - `SKILL CHECK (Perception) - ROLLED 15! (1d10 (8) + 7)`
 - `ATTACK ROLL (MELEE) (Katana) - ROLLED 21! CRITICAL! (1d10 (10) + 1d10 (6) + 5)`
-- `DEFENSE ROLL (MELEE) - ROLLED 12! (1d10 (5) + 7)` — no free-text parenthetical, since that field doesn't apply to this roll type
+- `EVASION (MELEE) - ROLLED 12! (1d10 (5) + 7)` — no free-text parenthetical, since that field doesn't apply to this roll type
 
 ## Decisions
 - **Rolling happens server-side**, reusing the exact same dice/crit math already built for [npc-dice-roll.md](npc-dice-roll.md)'s `roll_dice` MCP tool (extracted into a shared module both the MCP tool and this feature's endpoint call) — not reimplemented client-side. This keeps the two rollers mechanically identical and avoids duplicating the crit-exploding logic.

@@ -1,4 +1,4 @@
-import { END_COMBAT_TOOL, validateOutcome } from "./tools.js";
+import { END_COMBAT_TOOL, UPDATE_ENEMY_STATUS_TOOL, ENEMY_STATUS_LADDER, validateOutcome } from "./tools.js";
 import { loadCombatDmCore, buildCombatContext } from "./context.js";
 
 // The combat DM: one call per combat turn, plus the forced end for the
@@ -6,7 +6,11 @@ import { loadCombatDmCore, buildCombatContext } from "./context.js";
 // game comes in through the `game` module (see README.md, "The game
 // module contract"). See specs/combat-encounters.md §5.3.3.
 
-const MAX_TOOL_ROUNDTRIPS = 8;
+// Generous: an Enemy Phase with several shooters is an attack roll, a damage
+// roll, and a status note per enemy. The prompt tells the DM it can batch
+// roll_dice calls, but a cautious model that makes them one at a time must
+// not hit this wall mid-phase.
+const MAX_TOOL_ROUNDTRIPS = 16;
 const CACHE_CONTROL = { type: "ephemeral" };
 const EMPTY_REPLY_FALLBACK = "The combat DM pauses, reading the field — ask again.";
 
@@ -87,41 +91,71 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
 
   async function buildTools() {
     const mcpTools = await getMcpTools();
-    const tools = [...mcpTools, ...adHocLookups.map(lookupToolDef), END_COMBAT_TOOL];
+    const tools = [...mcpTools, ...adHocLookups.map(lookupToolDef), UPDATE_ENEMY_STATUS_TOOL, END_COMBAT_TOOL];
     tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_CONTROL };
     return tools;
   }
 
+  function findEnemyIndex(context, name) {
+    return context.enemies.findIndex((e) => e.name.toLowerCase() === String(name ?? "").trim().toLowerCase());
+  }
+
+  // Every write to an enemy during a fight - a lookup landing a number, the
+  // DM's status note - goes through here: applied to the live context copy
+  // so later tool calls in the same message see it, and returned as an
+  // update (path relative to the enemy object) for the router to persist.
+  function writeEnemy(context, enemyIndex, path, value) {
+    setPath(context.enemies[enemyIndex], path, value);
+    return { enemyIndex, path: Array.isArray(path) ? path.join(".") : String(path), value };
+  }
+
   // Runs one lookup deterministically against the live context copy, so a
-  // second call for the same value within the turn reads what the first one
-  // wrote. Returns the tool_result plus the update for the caller to persist.
+  // second call for the same value within the message reads what the first
+  // one wrote. Returns the tool_result plus the update for the caller to
+  // persist.
   function runLookup(lookup, input, context) {
-    const enemyIndex = context.enemies.findIndex((e) => e.name.toLowerCase() === String(input?.enemy ?? "").trim().toLowerCase());
+    const enemyIndex = findEnemyIndex(context, input?.enemy);
     if (enemyIndex === -1) {
       return { result: { content: `No enemy named "${input?.enemy}" in this fight.`, isError: true }, update: null };
     }
     const enemy = context.enemies[enemyIndex];
     try {
       const { path, value } = lookup.resolve(enemy, input);
-      enemy.stats = enemy.stats ?? {};
-      setPath(enemy.stats, path, value);
-      const pathKey = Array.isArray(path) ? path.join(".") : String(path);
+      const statPath = ["stats", ...(Array.isArray(path) ? path : String(path).split("."))];
+      const update = writeEnemy(context, enemyIndex, statPath, value);
       return {
-        result: { content: JSON.stringify({ enemy: enemy.name, [pathKey]: value }), isError: false },
-        update: { enemyIndex, path: pathKey, value },
+        result: { content: JSON.stringify({ enemy: enemy.name, [update.path.slice("stats.".length)]: value }), isError: false },
+        update,
       };
     } catch (err) {
       return { result: { content: `Lookup failed: ${err.message}`, isError: true }, update: null };
     }
   }
 
-  // One combat turn. Returns { text, outcome, statUpdates }: `outcome` is the
-  // validated end_combat input when the DM ended the fight this turn (null
-  // otherwise); `statUpdates` is every lookup that landed, for the caller to
-  // persist into combats.context.
+  // The DM's notepad entry for one enemy (update_enemy_status).
+  function runStatusUpdate(input, context) {
+    const enemyIndex = findEnemyIndex(context, input?.enemy);
+    if (enemyIndex === -1) {
+      return { result: { content: `No enemy named "${input?.enemy}" in this fight.`, isError: true }, update: null };
+    }
+    if (!ENEMY_STATUS_LADDER.includes(input?.status)) {
+      return { result: { content: `status must be one of ${ENEMY_STATUS_LADDER.join(", ")}`, isError: true }, update: null };
+    }
+    const note = typeof input?.note === "string" ? input.note.trim() : "";
+    const condition = note ? { status: input.status, note } : { status: input.status };
+    const update = writeEnemy(context, enemyIndex, "condition", condition);
+    return { result: { content: JSON.stringify({ enemy: context.enemies[enemyIndex].name, ...condition }), isError: false }, update };
+  }
+
+  // One combat message. Returns { text, outcome, enemyUpdates }: `outcome` is
+  // the validated end_combat input when the DM ended the fight (null
+  // otherwise); `enemyUpdates` is every write to an enemy this message - a
+  // lookup result under stats.*, or the DM's condition note - as
+  // { enemyIndex, path, value } for the caller to persist into
+  // combats.context.
   async function generateCombatReply({ context, history, roster, onDiceRoll = null }) {
     // Deep copy: lookups mutate stat blocks in place for the rest of this
-    // turn, and the caller persists them from statUpdates, not from here.
+    // message, and the caller persists them from enemyUpdates, not from here.
     const liveContext = structuredClone(context);
     const system = buildSystem({ context: liveContext, roster });
     const tools = await buildTools();
@@ -130,28 +164,32 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
       // First turn of a fight (nothing said yet), or the API's first-message-
       // must-be-user rule after a dropped row: open the fight from the
       // handoff. Never persisted.
-      messages.push({ role: "user", content: "System: Open the fight. Resolve the opening action from the handoff." });
+      messages.push({
+        role: "user",
+        content:
+          "System: Open the fight. The opening action in the handoff is declared, not rolled: set the scene, decide who goes first from the fiction, and if it's the players, end by requesting the rolls that action needs.",
+      });
     }
     if (messages.length > 1) {
       const idx = messages.length - 2;
       messages[idx] = { ...messages[idx], content: [{ type: "text", text: messages[idx].content, cache_control: CACHE_CONTROL }] };
     }
 
-    const statUpdates = [];
+    const enemyUpdates = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDTRIPS; round++) {
       const response = await client.messages.create({ model, max_tokens: 1500, system, messages, tools });
       const toolUses = response.content.filter((block) => block.type === "tool_use");
 
       if (toolUses.length === 0) {
-        return { text: extractText(response) || EMPTY_REPLY_FALLBACK, outcome: null, statUpdates };
+        return { text: extractText(response) || EMPTY_REPLY_FALLBACK, outcome: null, enemyUpdates };
       }
 
       const endCall = toolUses.find((t) => t.name === "end_combat");
       if (endCall) {
         const { errors, value } = validateOutcome(endCall.input);
         if (errors.length === 0) {
-          return { text: extractText(response), outcome: value, statUpdates };
+          return { text: extractText(response), outcome: value, enemyUpdates };
         }
         // Incomplete - reject it as a tool error and let the DM retry with
         // the full content rather than silently accepting a partial outcome.
@@ -174,10 +212,15 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
 
       const toolResults = await Promise.all(
         toolUses.map(async (toolUse) => {
+          if (toolUse.name === "update_enemy_status") {
+            const { result, update } = runStatusUpdate(toolUse.input, liveContext);
+            if (update) enemyUpdates.push(update);
+            return { type: "tool_result", tool_use_id: toolUse.id, content: result.content, is_error: result.isError };
+          }
           const lookup = lookupsByName.get(toolUse.name);
           if (lookup) {
             const { result, update } = runLookup(lookup, toolUse.input, liveContext);
-            if (update) statUpdates.push(update);
+            if (update) enemyUpdates.push(update);
             return { type: "tool_result", tool_use_id: toolUse.id, content: result.content, is_error: result.isError };
           }
           const result = await callMcpTool(toolUse.name, toolUse.input);
@@ -187,7 +230,7 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
       messages.push({ role: "user", content: toolResults });
     }
 
-    return { text: "The combat DM lost the thread mid-exchange — ask again.", outcome: null, statUpdates };
+    return { text: "The combat DM lost the thread mid-exchange — ask again.", outcome: null, enemyUpdates };
   }
 
   // Manual admin override (§5.4): end_combat forced, no other tools. For the

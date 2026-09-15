@@ -101,7 +101,7 @@ export function buildStartCombatTool({ enemySchema }) {
         },
         openingAction: {
           type: "string",
-          description: "The players' declared action that started it, verbatim intent, UNRESOLVED. The combat DM's first turn resolves it.",
+          description: "The players' declared action that started it, verbatim intent, UNROLLED and unresolved. The combat DM opens by requesting whatever rolls it needs.",
         },
       },
     },
@@ -153,13 +153,43 @@ export function validateHandoff(input) {
 }
 
 // ---------------------------------------------------------------------------
+// update_enemy_status - the combat DM's notepad
+// ---------------------------------------------------------------------------
+
+// The DM is told to track each enemy's state privately, but a model has no
+// private memory between messages - only its own past narration, which it
+// is also told to keep vague about status. This is the notepad: what it
+// records here is persisted on the enemy in the combat record and rendered
+// in the handoff tier next message, so status and position survive without
+// being re-derived from prose. Never shown to players.
+export const ENEMY_STATUS_LADDER = ["unharmed", "bruised", "injured", "critical", "dead"];
+
+export const UPDATE_ENEMY_STATUS_TOOL = {
+  name: "update_enemy_status",
+  description:
+    "Your notepad for one enemy - the players never see it. Record its step on the status ladder and a one-line note on where it is and what shape it's in, and it will be in its stat block next message. Call it whenever a hit lands on an enemy, it drops, or it moves somewhere that matters, before you narrate the beat.",
+  input_schema: {
+    type: "object",
+    required: ["enemy", "status"],
+    properties: {
+      enemy: { type: "string", description: "The enemy's name exactly as it appears in the stat blocks." },
+      status: { type: "string", enum: ENEMY_STATUS_LADDER },
+      note: {
+        type: "string",
+        description: "One line: position, wounds, what it's doing. e.g. 'behind the dumpster, gun arm hit, reloading'.",
+      },
+    },
+  },
+};
+
+// ---------------------------------------------------------------------------
 // end_combat
 // ---------------------------------------------------------------------------
 
 export const END_COMBAT_TOOL = {
   name: "end_combat",
   description:
-    "Call this only when hostilities have ended: no one is left both able and willing to fight the players (all enemies dead, incapacitated, fled, or surrendered), or the players have disengaged beyond reach or are all down, or both sides have genuinely stopped. The players meeting their objective does NOT end combat on its own. Narrate the wrap in your text, then call this. This ends your turn and the fight.",
+    "Call this only when hostilities have ended: no one is left both able and willing to fight the players (all enemies dead, incapacitated, fled, or surrendered), or the players have disengaged beyond reach or are all down, or both sides have genuinely stopped. The players meeting their objective does NOT end combat on its own. Narrate the wrap in your text, then call this. This ends your response and the fight.",
   input_schema: {
     type: "object",
     required: ["outcome", "objectiveAchieved", "narrative", "partyStatus", "enemyStatus", "consequences"],

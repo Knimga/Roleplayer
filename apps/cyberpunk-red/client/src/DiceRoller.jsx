@@ -8,7 +8,7 @@ const ROLL_TYPES = [
   { value: "ATTACK_MELEE", label: "Attack Roll (Melee)", requiresFreeText: true },
   { value: "ATTACK_RANGED", label: "Attack Roll (Ranged)", requiresFreeText: true },
   { value: "DAMAGE", label: "Damage Roll", requiresFreeText: true, requiresNumDice: true },
-  { value: "DEFENSE_MELEE", label: "Defense Roll (Melee)", requiresFreeText: false },
+  { value: "DEFENSE_MELEE", label: "Evasion (Melee)", requiresFreeText: false },
 ];
 
 const EMPTY_FORM = { rollType: "", modifier: "", freeText: "", numDice: "" };

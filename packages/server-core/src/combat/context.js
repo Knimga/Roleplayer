@@ -28,6 +28,11 @@ function renderStats(stats) {
 
 function renderEnemy(enemy) {
   const lines = [`### ${enemy.name}`, enemy.description];
+  // The DM's own notepad entry (update_enemy_status), if it has made one -
+  // rendered first because it's the most current fact about this enemy.
+  if (enemy.condition?.status) {
+    lines.push(`Now: ${enemy.condition.status}${enemy.condition.note ? ` — ${enemy.condition.note}` : ""}`);
+  }
   if (enemy.motive) lines.push(`Motive: ${enemy.motive}`);
   if (enemy.notes) lines.push(`Notes: ${enemy.notes}`);
   // The game's own fields (tier, creature type, whatever its schema asked
@@ -61,7 +66,7 @@ ${context.circumstances}
 ${context.objective}
 (Not an exit condition. If they achieve it while hostilities continue, note it, expect their goal to shift, and keep running phases until hostilities actually end.)
 
-## Opening action (unresolved - your first turn resolves this)
+## Opening action (declared, not rolled - your opening message asks for the rolls it needs)
 ${context.openingAction}`;
 }
 

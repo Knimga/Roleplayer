@@ -69,7 +69,7 @@ Short session: Hook, one or two Developments, Climax, Resolution. Alternate loud
 
 ## Opposition
 
-- Assign tiers and Combat Numbers from `npc-modifier-lookup.md`. Roughly one Elite or Boss per two players, with Mooks around them.
+- Size the opposition for two players: a few mooks, or one professional with backup. An elite or boss should be rare and earned by the story. You never assign their numbers — when a fight starts, you name each enemy's tier and archetype in the `start_combat` handoff and the combat DM takes it from there.
 - Give enemies a goal beyond attacking: guards want to go home, gangers want respect, Corp security wants containment.
 - Not all obstacles are people — locks, cameras, drones, turrets count.
 - Named NPCs recur. Whoever escapes tonight is next session's problem.
@@ -80,7 +80,7 @@ Cyberpunk crews aren't friends. The hook is the team: people thrown together who
 
 ## Downtime
 
-- Healing takes days of rest (see `player-damage-healing.md`), so injury often forces downtime.
+- Healing takes days of rest (a character must be stabilized first, then recovers HP equal to their BODY per full day of rest; pushing it reopens the wounds), so injury often forces downtime.
 - A character with seven free days can Hustle — freelance work in their Role. Rank 1-4: 0-300eb/week. Rank 5-7: 100-500eb. Rank 8-10: 300-800eb. Flavor by Role. Pocket money, not real income.
 - Also: shopping (gated by Fixer Reach, see `fixer-operator-ability.md`), Tech fabrication (see `tech-maker-ability.md`), cyberware installs, cultivating contacts, personal storylines.
 - Use downtime for character scenes; a two-player game has room for both.

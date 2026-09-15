@@ -4,9 +4,19 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { z } from "zod";
 import { rollSkillCheck, rollGeneric, formatModifier, formatDiceBreakdown } from "./dice.js";
+import {
+  ARCHETYPES,
+  ARCHETYPE_DESCRIPTION,
+  STATS,
+  STAT_HINTS,
+  TIER_STAT_BASE,
+  statTotal,
+} from "../server/combat/enemy-stats.js";
 
 const DOCS_DIR = fileURLToPath(new URL("./docs", import.meta.url));
 const VALID_SIDES = [6, 10];
+const ARCHETYPE_NAMES = Object.keys(ARCHETYPES);
+const TIER_NUMBERS = Object.keys(TIER_STAT_BASE).map(Number);
 
 export function createGameMcpServer() {
   const server = new McpServer({ name: "cyberpunk-red-tools", version: "1.0.0" });
@@ -74,6 +84,40 @@ export function createGameMcpServer() {
       const summary = `${critPrefix}Rolled ${total}! (${formatDiceBreakdown(rolls, sides, critResult)}${formatModifier(modifier)})`;
 
       return { content: [{ type: "text", text: JSON.stringify({ total, summary, critResult }) }] };
+    },
+  );
+
+  // A one-call STAT check for an NPC that has no stat block - the narrative
+  // DM's guard, bartender, or rival fixer, or a bystander who wanders into a
+  // fight. Looks the STAT total up from the same table combat enemies are
+  // statted from (server/combat/enemy-stats.js) and rolls the 1d10 in the
+  // same call, so there's no number to look up and then invent. Enemies
+  // already in a combat's handoff carry all seven STATs in their block and
+  // should use roll_dice with that value instead.
+  server.registerTool(
+    "npc_check",
+    {
+      description: `Roll a STAT check for an NPC that has no stat block, in one call: you name the kind of NPC and which STAT the action falls under, this looks up the NPC's total and rolls 1d10 on it. Never use this for player rolls. Decide the STAT yourself rather than consulting a skill list - ${STATS.map((s) => `${s}: ${STAT_HINTS[s]}`).join("; ")}. Archetypes: ${ARCHETYPE_DESCRIPTION} Tier is skill/danger, 1 untrained to 5 boss.`,
+      inputSchema: {
+        archetype: z.enum(ARCHETYPE_NAMES).describe("What kind of NPC this is, judged from the fiction."),
+        tier: z.number().int().min(1).max(5).describe("1 untrained, 2 mook, 3 professional, 4 elite, 5 boss."),
+        stat: z.enum(STATS).describe("The STAT the action falls under."),
+        purpose: z.string().optional().describe("What the check is for, e.g. 'notice Vidik on the catwalk' - echoed back so the result reads clearly."),
+      },
+    },
+    async ({ archetype, tier, stat, purpose }) => {
+      if (!TIER_NUMBERS.includes(tier)) {
+        return { content: [{ type: "text", text: `tier must be one of ${TIER_NUMBERS.join(", ")}` }], isError: true };
+      }
+      const modifier = statTotal({ tier, archetype }, stat);
+      const { rolls, diceTotal, critResult } = rollSkillCheck();
+      const total = diceTotal + modifier;
+      const critPrefix =
+        critResult === "success" ? "Critical Success! " : critResult === "failure" ? "Critical Failure! " : "";
+      const label = purpose ? `${purpose} - ` : "";
+      const summary = `${label}${critPrefix}Rolled ${total}! (${stat} ${modifier} + ${formatDiceBreakdown(rolls, 10, critResult)})`;
+
+      return { content: [{ type: "text", text: JSON.stringify({ statTotal: modifier, total, summary, critResult }) }] };
     },
   );
 

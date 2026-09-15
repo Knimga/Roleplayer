@@ -194,17 +194,18 @@ export function createCombatsRouter({
     return saved;
   }
 
-  // Persists the stat-block growth from this turn's ad hoc lookups (§6) so
-  // the next turn's handoff tier already carries them.
-  async function persistStatUpdates(row, statUpdates) {
-    if (statUpdates.length === 0) return;
+  // Persists every write the DM made to an enemy this message - a lookup
+  // result under stats.* (§6) or its update_enemy_status note under
+  // condition - so the next message's handoff tier already carries them.
+  // Paths are relative to the enemy object.
+  async function persistEnemyUpdates(row, enemyUpdates) {
+    if (enemyUpdates.length === 0) return;
     const context = structuredClone(row.combat.context);
-    for (const { enemyIndex, path, value } of statUpdates) {
+    for (const { enemyIndex, path, value } of enemyUpdates) {
       const enemy = context.enemies[enemyIndex];
       if (!enemy) continue;
-      enemy.stats = enemy.stats ?? {};
       const keys = path.split(".");
-      let cursor = enemy.stats;
+      let cursor = enemy;
       for (let i = 0; i < keys.length - 1; i++) {
         if (typeof cursor[keys[i]] !== "object" || cursor[keys[i]] === null) cursor[keys[i]] = {};
         cursor = cursor[keys[i]];
@@ -264,13 +265,13 @@ export function createCombatsRouter({
 
     try {
       const history = await loadCombatHistory(row.combat.id);
-      const { text, outcome, statUpdates } = await generateCombatReply({
+      const { text, outcome, enemyUpdates } = await generateCombatReply({
         context: row.combat.context,
         history,
         roster: buildRoster(row.conversation),
         onDiceRoll: () => publish(conversationId, { type: "status", text: "DM is rolling..." }),
       });
-      await persistStatUpdates(row, statUpdates);
+      await persistEnemyUpdates(row, enemyUpdates);
 
       if (outcome) {
         // The DM's wrap-up text is delivered live as the fight's last

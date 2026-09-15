@@ -24,7 +24,8 @@ file is the map.
               ▼                                     │        + roster
  apps/<app>/server/routes/conversations.js          ├─ tools: MCP roll_dice/docs
    startCombat()                                    │         + game.adHocLookups (persist into stats)
-   ├─ validateHandoff()        (tools.js)           │         + end_combat            (tools.js)
+   ├─ validateHandoff()        (tools.js)           │         + update_enemy_status (persist into condition)
+   │                                                │         + end_combat            (tools.js)
    ├─ stats = game.generateCoreStats(enemy)         └─ end_combat is TERMINAL → outcome
    ├─ INSERT combats { context }
    └─ SSE combat-started
@@ -45,7 +46,7 @@ generating concurrently.
 
 | File | What |
 |---|---|
-| `tools.js` | `start_combat` (built from the game's `enemySchema`; description loaded from `prompts/combat-handoff.md`), `end_combat`, both validators, and `withBaseEnemyFields` |
+| `tools.js` | `start_combat` (built from the game's `enemySchema`; description loaded from `prompts/combat-handoff.md`), `end_combat`, `update_enemy_status` (the combat DM's notepad: status + a position note, persisted on the enemy and rendered in the handoff tier next message), both validators, and `withBaseEnemyFields` |
 | `context.js` | `combat-dm-core.md` loader, the handoff rendered as a cached prompt tier, the outcome rendered as a message |
 | `generator.js` | `createCombatGenerator({ client, model, getMcpTools, callMcpTool, game })` → `{ generateCombatReply, generateCombatEnd }` |
 | `router.js` | `createCombatsRouter({ db, tables, game, … })` → the `/api/combats` routes |
@@ -69,7 +70,7 @@ export const combatGame = {
 
 An enemy is one flat object: the engine's `name` / `description` /
 `motive` / `notes`, plus whatever the game's schema adds (Cyberpunk: `tier`,
-`weapon`, `archetype`; Laria: `creatureType`, `threatTier`), plus `stats`,
+`archetype`, `meleeWeapon`, `rangedWeapon`; Laria: `creatureType`, `threatTier`), plus `stats`,
 which only the engine writes (from `generateCoreStats` at handoff and from
 lookups during the fight). `buildCombatContext` renders the game's fields
 as "Type: …" without knowing their names.

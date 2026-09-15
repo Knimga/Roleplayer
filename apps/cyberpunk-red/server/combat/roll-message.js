@@ -8,7 +8,7 @@ const ROLL_TYPES = {
   ATTACK_MELEE: { label: "ATTACK ROLL (MELEE)", sides: 10, requiresFreeText: true },
   ATTACK_RANGED: { label: "ATTACK ROLL (RANGED)", sides: 10, requiresFreeText: true },
   DAMAGE: { label: "DAMAGE ROLL", sides: 6, requiresFreeText: true, requiresNumDice: true },
-  DEFENSE_MELEE: { label: "DEFENSE ROLL (MELEE)", sides: 10, requiresFreeText: false },
+  DEFENSE_MELEE: { label: "EVASION (MELEE)", sides: 10, requiresFreeText: false },
 };
 
 // Validates a roll request body and performs the roll, returning the message

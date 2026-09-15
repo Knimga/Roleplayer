@@ -16,6 +16,5 @@ Here are the backstory files for each character:
 - `skills.md` - deciding whether a check is needed and setting DVs
 - `fixer-operator-ability.md` - when a Fixer (Null) tries to use their core ability
 - `tech-maker-ability.md` - when a Tech (Vidik) tries to use their core ability
-- `player-damage-healing.md` — when a player is dying or recovering outside a fight (fights themselves are run by the combat DM, not you)
 - `reputation.md` - when an NPC might recognize a player, or a Facedown comes up
 - `our-flat.md` - when players are at, discuss, or return to their hideout
