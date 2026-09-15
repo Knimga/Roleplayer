@@ -55,7 +55,7 @@ Summary: Reporter, journalist, or influencer who digs up and publishes the truth
 Role Ability: Credibility
 
 - Determines Access/Sources, Audience, Believability, and Impact of published stories
-- Grants passive rumor detection (GM rolls Credibility + 1d10 vs Rumor Table DVs) and active rumor-hunting via Skills like Library Search, Conversation, Interrogation
+- Grants passive rumor detection (DM rolls Credibility + 1d10 vs Rumor Table DVs) and active rumor-hunting via Skills like Library Search, Conversation, Interrogation
 
 ## Exec
 

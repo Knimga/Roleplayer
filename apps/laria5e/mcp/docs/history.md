@@ -191,5 +191,5 @@ Source: "A History of Laria" — Elder Era / Dark Era sections
 ## Unresolved Threads (live hooks, not settled facts)
 
 - **Demonic War relics:** recovery after 222–230AK was slow and incomplete; many relics remain unaccounted for in the wild, especially in the north.
-- **Nahlia Mountains demon infestation:** left open to GM discretion.
+- **Nahlia Mountains demon infestation:** left open to DM discretion.
 - **Ildrazza and the Ulduroki sorcerers:** active antagonists; their long-term fate is not something the party has any way to know.

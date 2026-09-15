@@ -328,7 +328,7 @@ export function buildBlueprintContext({ blueprint, situation }) {
     : "## Milestone to Steer Toward\nNone - the arc is complete. Keep the world consistent with everything that has happened; there is no further destination to steer toward.";
 
   return `# Hidden Campaign Context
-This is private planning material for your own use as GM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a milestone, no "the campaign plan", no bookkeeping language at all. See "Working the Situation" in your instructions for how to use it. Players should only ever experience its effects in the fiction, never see or infer the mechanism.
+This is private planning material for your own use as DM - never shown to players. NEVER mention, name, quote, or summarize any of it to players: no naming a milestone, no "the campaign plan", no bookkeeping language at all. See "Working the Situation" in your instructions for how to use it. Players should only ever experience its effects in the fiction, never see or infer the mechanism.
 
 ## Premise
 Type: ${premise.type}

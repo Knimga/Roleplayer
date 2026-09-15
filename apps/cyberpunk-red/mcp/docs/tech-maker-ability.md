@@ -1,6 +1,6 @@
 # Tech Role Ability: Maker
 
-What the GM needs to know to adjudicate a Tech at the table.
+What the DM needs to know to adjudicate a Tech at the table.
 
 ## What It Is
 
@@ -42,15 +42,15 @@ Materials cost:
 
 ## Invention Expertise (handle with care)
 
-This is the Specialty most likely to break a game, so the GM drives it:
+This is the Specialty most likely to break a game, so the DM drives it:
 
 - The player describes the desired item or upgrade as precisely as they can, in terms of existing in-setting technology, including the mechanism by which it works. A rough schematic helps.
-- If the GM approves the concept, the GM writes how it works in rules terms, keeping it balanced. The existing Upgrade Expertise options are the benchmark for a fair "power level."
-- The GM sets the invention's price category by what it would sell for, but never lower than Expensive. That category then sets the DV, time, and material cost to actually build it (via Fabrication or Upgrade Expertise).
+- If the DM approves the concept, the DM writes how it works in rules terms, keeping it balanced. The existing Upgrade Expertise options are the benchmark for a fair "power level."
+- The DM sets the invention's price category by what it would sell for, but never lower than Expensive. That category then sets the DV, time, and material cost to actually build it (via Fabrication or Upgrade Expertise).
 - Nobody takes an invention seriously until there's a working prototype — and that's exactly when rivals try to steal it. The courts are no help.
-- The GM may retune or even replace an invention after the fact if it proves unbalanced; this is expected, not a failure.
+- The DM may retune or even replace an invention after the fact if it proves unbalanced; this is expected, not a failure.
 
-## Running It as GM
+## Running It as DM
 
 - Ask first what Maker Specialties the Tech has and at what Rank. A Tech with Field Expertise 4 is a superb field mechanic but may have no ability to invent; treat each Specialty separately.
 - Field Expertise is the in-mission clutch: use it when gear fails mid-job. Remember the jury-rig is temporary — it buys minutes, not a permanent fix, and sets up tension if the fight runs long.

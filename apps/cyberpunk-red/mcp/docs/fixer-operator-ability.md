@@ -1,6 +1,6 @@
 # Fixer Role Ability: Operator
 
-What the GM needs to know to adjudicate a Fixer at the table.
+What the DM needs to know to adjudicate a Fixer at the table.
 
 ## What It Is
 
@@ -42,7 +42,7 @@ On success, the Fixer completes 1 deal of their Operator Rank or lower, and appl
 | 9 | Luxury piece by piece | Divisional Corp heads, zone politicos, celebrities. | 20% better price buying or selling. | Blends with Corporate and governmental agencies too. |
 | 10 | Super Luxury piece by piece | Major world leaders, Corp heads, world-famous celebrities. | Double a Dangerous Job's pay-per-person. | Blends seamlessly with almost any group, including secret societies and cults. |
 
-## Running It as GM
+## Running It as DM
 
 - When players want gear, ask for the Fixer's Reach if you don't know it: at or below their Reach category, they can source it (for the price).
 - Call for a Haggle roll only when there's a real negotiation and an opposing party — a willing seller at a fair price needs no roll. Narrate the contact, the meet, and the terms; use the roll to decide how the deal tilts.

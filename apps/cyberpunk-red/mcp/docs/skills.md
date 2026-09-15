@@ -6,7 +6,7 @@ Skill Reference for Calling Checks
 
 A Skill Check is always rolled by the player, compared against either:
 
-- a Difficulty Value (DV) the GM sets for the task, or
+- a Difficulty Value (DV) the DM sets for the task, or
 - an opposed roll (the target's STAT + Skill + 1d10). On a tie, the defender wins.
 
 ## Critical Successes & Critical Failures
@@ -31,23 +31,6 @@ The DV is the number a player must meet or beat, in order to be successful at a 
 | Incredible | 24 | Elite even among professionals; Olympian. |
 | Legendary | 29 | The stuff of stories. |
 
-## Modifiers (subtract from the roll; cumulative)
-
-| Modifier | Penalty |
-|---|---|
-| Low light | -1 |
-| Never done it before | -1 |
-| Complex task | -2 |
-| Wrong/no tools | -2 |
-| Poor sleep | -2 |
-| Extreme stress | -2 |
-| Exhausted | -4 |
-| Drunk/sedated | -4 |
-| Acting secretly | -4 |
-| Obscured by smoke/darkness | -4 |
-
-A failed check can't be retried unless the odds change (more time, better tools, or a helper's complementary check grants +1). Taking four times as long grants +1. LUCK points can be spent for +1 each before rolling.
-
 ## DVs to Repair / Fabricate / Invent Items (by item price category)
 
 | Price Category | DV | Time |
@@ -64,10 +47,6 @@ Damaged-item repair scales similarly: Minor DV9, Major DV13, Destroyed DV17.
 ## The Skills
 
 Format: Skill (linked STAT) — when to call for it.
-
-### Basic Skills (every character has these)
-
-Athletics, Brawling, Concentration, Conversation, Education, Evasion, First Aid, Human Perception, Language (Streetslang), Local Expert (Your Home), Perception, Persuasion, Stealth. (Defined below within their categories.)
 
 ### Awareness
 
@@ -124,9 +103,7 @@ Athletics, Brawling, Concentration, Conversation, Education, Evasion, First Aid,
 | Skill | Stat | When to call for it |
 |---|---|---|
 | Brawling | DEX | Unarmed strikes and grappling by brute force. |
-| Evasion | DEX | Dodging melee attacks (and ranged/explosions if REF is 8+). |
 | Martial Arts | DEX | Fighting with a trained martial form; special moves like disarms and throws. |
-| Melee Weapon | DEX | Fighting with any melee weapon. |
 
 ### Performance
 
@@ -134,16 +111,6 @@ Athletics, Brawling, Concentration, Conversation, Education, Evasion, First Aid,
 |---|---|---|
 | Acting | COOL | Playing a role, impersonating, or feigning emotion convincingly. |
 | Play Instrument | TECH | Performing on a chosen musical instrument. |
-
-### Ranged Weapon
-
-| Skill | Stat | When to call for it |
-|---|---|---|
-| Archery | REF | Bows and crossbows. |
-| Autofire | REF | Firing weapons on full-auto. |
-| Handgun | REF | Pistols. |
-| Heavy Weapons | REF | Grenade launchers, rocket launchers, railguns, and heavy weapons. |
-| Shoulder Arms | REF | Rifles, shotguns, and SMGs. |
 
 ### Social
 

@@ -1,6 +1,6 @@
 # Gear & Equipment Behavior
 
-Cyberpunk Red — How specific items work and how the GM should handle them.
+Cyberpunk Red — How specific items work and how the DM should handle them.
 
 ## Gear
 

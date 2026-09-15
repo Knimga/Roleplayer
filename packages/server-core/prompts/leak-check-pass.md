@@ -32,7 +32,7 @@ something players are shown actively doing in this same response?**
   payoff of play, the exact reason the milestone exists. Answer `false`.
 - If the fact appears as background color, scenery, or an aside
   unconnected to any investigative action depicted in this response —
-  the DM is drawing on hidden GM knowledge it had no in-fiction reason to
+  the DM is drawing on hidden DM knowledge it had no in-fiction reason to
   volunteer yet. This **is a leak**. Answer `true`.
 - If the milestone's narrative doesn't contain any specific, nameable secret
   at all (e.g. it describes a mood, a general state, or an outcome with
