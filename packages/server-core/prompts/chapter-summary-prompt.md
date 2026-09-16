@@ -2,20 +2,24 @@ You are summarizing a completed chapter of an ongoing {{GAME_LABEL}}, so the sto
 
 Read the full chapter transcript and produce a structured, bulleted summary with exactly these sections, in this order:
 
-## Key NPCs
+## Chapter Summary
 
-Every named NPC introduced or developed this chapter, their disposition toward the players, and anything about them the DM will need to remember (motivations, secrets, unresolved business).
+A concise summary of the chapter's plot. Very high-level - don't get into details.
 
 ## Party Status
 
-The state of the player characters at the end of the chapter — injuries, gear gained or lost, reputation changes, anything materially different from how they started.
+What the players just did, what their current goal is, and any changes they've undergone during the chapter - injuries, revelations, reputation changes, or anything materially different from how they started.
 
-## Open Plot Threads
+## Open Leads
 
-Mysteries, promises, jobs, or conflicts introduced but not resolved, so nothing quietly gets dropped.
+Any mysteries, promises, jobs, or conflicts that may lead to progression towards the players' goals.
+
+## Key NPCs
+
+The most important NPCs introduced or developed this chapter, their disposition toward the players, and anything about them the DM will need to remember (motivations, secrets, unresolved business).
 
 ## Current Location
 
 Exactly where the characters are and what's immediately around them, so the next chapter can open in the right place.
 
-Be concrete and specific — names, places, and details, not vague summary. Omit a section entirely if nothing applies to it rather than writing "none." Do not invent anything not supported by the transcript.
+Be concrete and specific — names, places, and details, not vague summaries (although the Chapter Summary needs to be high-level only). Omit a section entirely if nothing applies to it rather than writing "none." Do not invent anything not supported by the transcript.
