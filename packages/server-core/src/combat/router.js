@@ -97,28 +97,13 @@ export function createCombatsRouter({
     return db.select().from(combatMessages).where(eq(combatMessages.combatId, combatId)).orderBy(asc(combatMessages.createdAt));
   }
 
-  // True if no *other* message in this combat was created after `createdAt`
-  // - mirrors conversations.js's isLatestMessage, scoped to one combat's
-  // transcript instead of a whole chapter. Same reasoning for excluding
-  // messageId itself rather than trusting the timestamp comparison alone
-  // (Postgres microsecond precision vs. Drizzle's millisecond round-trip).
-  async function isLatestCombatMessage(combatId, messageId, createdAt) {
-    const [later] = await db
-      .select({ id: combatMessages.id })
-      .from(combatMessages)
-      .where(and(eq(combatMessages.combatId, combatId), gt(combatMessages.createdAt, createdAt), ne(combatMessages.id, messageId)))
-      .limit(1);
-    return !later;
-  }
-
   // Mirrors conversations.js's findModifiableMessage, scoped to one combat's
-  // transcript: a player can edit/delete their own message until the combat
-  // DM has replied after it; the combat DM's own messages can never be
-  // edited; the admin can delete the single most recent message regardless
-  // of role, to retry a bad combat-DM turn the same way the main chat's
-  // delete-latest works. No chapter-lock check is needed here - a combat can
-  // only be active on the currently unlocked chapter (§4 invariant).
-  async function findModifiableCombatMessage(combatId, messageId, user, { allowAdminDeleteLatest = false } = {}) {
+  // transcript: any message can be edited or deleted until the combat DM has
+  // replied after it. Players may only touch their own; the admin may also
+  // touch the combat DM's latest reply (rewrite a bad beat, or delete it to
+  // retry). No chapter-lock check is needed here - a combat can only be
+  // active on the currently unlocked chapter (§4 invariant).
+  async function findModifiableCombatMessage(combatId, messageId, user) {
     const [row] = await db
       .select()
       .from(combatMessages)
@@ -128,25 +113,31 @@ export function createCombatsRouter({
       return { status: 404, error: "Message not found" };
     }
 
-    const isAdminDeletingLatest =
-      allowAdminDeleteLatest && user.isAdmin && (await isLatestCombatMessage(combatId, messageId, row.createdAt));
-
-    if (row.role !== "user" && !isAdminDeletingLatest) {
-      return { status: 403, error: "The combat DM's messages can't be edited or deleted" };
+    if (row.role !== "user" && !user.isAdmin) {
+      return { status: 403, error: "Only the admin can modify the combat DM's messages" };
     }
     if (!user.isAdmin && row.authorUsername !== user.username) {
       return { status: 403, error: "You can only modify your own messages" };
     }
 
-    if (!isAdminDeletingLatest) {
-      const [laterReply] = await db
-        .select({ id: combatMessages.id })
-        .from(combatMessages)
-        .where(and(eq(combatMessages.combatId, combatId), eq(combatMessages.role, "assistant"), gt(combatMessages.createdAt, row.createdAt)))
-        .limit(1);
-      if (laterReply) {
-        return { status: 403, error: "This message is locked — the DM has already replied" };
-      }
+    // Excludes the row itself rather than trusting the timestamp comparison
+    // alone (Postgres microsecond precision vs. Drizzle's millisecond
+    // round-trip): a DM row compared against a truncated copy of its own
+    // timestamp can read as "later than itself".
+    const [laterReply] = await db
+      .select({ id: combatMessages.id })
+      .from(combatMessages)
+      .where(
+        and(
+          eq(combatMessages.combatId, combatId),
+          eq(combatMessages.role, "assistant"),
+          gt(combatMessages.createdAt, row.createdAt),
+          ne(combatMessages.id, messageId),
+        ),
+      )
+      .limit(1);
+    if (laterReply) {
+      return { status: 403, error: "This message is locked — the DM has already replied" };
     }
 
     return { row };
@@ -334,9 +325,7 @@ export function createCombatsRouter({
     const row = await loadActiveCombat(req.params.id, res);
     if (!row) return;
 
-    const result = await findModifiableCombatMessage(row.combat.id, req.params.messageId, req.user, {
-      allowAdminDeleteLatest: true,
-    });
+    const result = await findModifiableCombatMessage(row.combat.id, req.params.messageId, req.user);
     if (result.error) {
       return res.status(result.status).json({ error: result.error });
     }

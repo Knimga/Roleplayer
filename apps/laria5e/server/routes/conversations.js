@@ -177,45 +177,16 @@ async function insertUserMessage(conversationId, sender, authorUsername, content
 
 // Shared by the edit and delete message routes — the actual enforcement,
 // re-evaluated fresh on every request rather than trusted from client state.
-// Also correctly resolves the race where a GM reply lands in the DB moments
+// Also correctly resolves the race where a DM reply lands in the DB moments
 // before an edit/delete request arrives: the request just gets rejected as
 // locked, same as if the lock had already been visible client-side.
-// True if no *other* message in the conversation was created after
-// `createdAt` - i.e. the row it came from is the single most recent message
-// overall, regardless of role. Used only for the admin delete-latest escape
-// hatch below; everywhere else "latest" is scoped to assistant replies
-// specifically (see the laterReply check). Explicitly excludes messageId
-// itself rather than relying on the `gt(createdAt)` comparison alone - same
-// reasoning as hasLaterChapter above: Postgres stores timestamps at
-// microsecond precision, but Drizzle round-trips `createdAt` through a JS
-// `Date` (millisecond precision) once fetched and passed back in here,
-// truncating it - so comparing a row's real stored value against a
-// truncated copy of its own timestamp can spuriously read as "later than
-// itself".
-async function isLatestMessage(conversationId, messageId, createdAt) {
-  const [later] = await db
-    .select({ id: messages.id })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.conversationId, conversationId),
-        gt(messages.createdAt, createdAt),
-        ne(messages.id, messageId),
-      ),
-    )
-    .limit(1);
-  return !later;
-}
-
-// `allowAdminDeleteLatest` is passed only by the delete route - lets the
-// admin delete the single most recent message in the conversation even when
-// it's the DM's own reply, to cleanly retry a bad response without any
-// other special-casing. Never applies to edits (a delete-only affordance).
-// Unlocks the role check below; ownership (admin already bypasses it) and
-// the chapter-lock check still apply as normal. The laterReply check is
-// explicitly skipped rather than left to "naturally" pass - see its own
-// comment below for why it can't just be left alone here.
-async function findModifiableMessage(conversationId, messageId, user, { allowAdminDeleteLatest = false } = {}) {
+//
+// One rule for every role: a message can be edited or deleted until the DM
+// has replied after it. Players may only touch their own; the admin may touch
+// any player's and the DM's own - which, under the same lock, means the DM's
+// latest reply (a rewrite of a bad beat, or a retry by deleting it), never
+// anything the DM has since built on.
+async function findModifiableMessage(conversationId, messageId, user) {
   const [row] = await db
     .select()
     .from(messages)
@@ -225,11 +196,8 @@ async function findModifiableMessage(conversationId, messageId, user, { allowAdm
     return { status: 404, error: "Message not found" };
   }
 
-  const isAdminDeletingLatest =
-    allowAdminDeleteLatest && user.isAdmin && (await isLatestMessage(conversationId, messageId, row.createdAt));
-
-  if (row.role !== "user" && !isAdminDeletingLatest) {
-    return { status: 403, error: "GM messages can't be edited or deleted" };
+  if (row.role !== "user" && !user.isAdmin) {
+    return { status: 403, error: "Only the admin can modify the DM's messages" };
   }
   if (!user.isAdmin && row.authorUsername !== user.username) {
     return { status: 403, error: "You can only modify your own messages" };
@@ -243,22 +211,23 @@ async function findModifiableMessage(conversationId, messageId, user, { allowAdm
     return { status: 403, error: "This chapter is locked — start a new chapter to continue." };
   }
 
-  // Skipped for the admin-deletes-latest case: isAdminDeletingLatest already
-  // confirmed via isLatestMessage (correctly excluding row's own id) that no
-  // message of any role has a later createdAt, which trivially implies no
-  // *assistant* message does either - the query below would otherwise
-  // self-match on the same timestamp-truncation issue isLatestMessage guards
-  // against, since it doesn't exclude row's own id and row itself can now be
-  // the assistant message being checked (previously impossible to reach
-  // this line with an assistant row, since the role check above always
-  // short-circuited first).
-  if (isAdminDeletingLatest) {
-    return { row };
-  }
+  // Excludes the row itself rather than relying on `gt(createdAt)` alone -
+  // same reasoning as hasLaterChapter above: Postgres stores timestamps at
+  // microsecond precision, but Drizzle round-trips `createdAt` through a JS
+  // `Date` (millisecond precision), truncating it, so a DM row compared
+  // against a truncated copy of its own timestamp can spuriously read as
+  // "later than itself" and lock the very message being edited.
   const [laterReply] = await db
     .select({ id: messages.id })
     .from(messages)
-    .where(and(eq(messages.conversationId, conversationId), eq(messages.role, "assistant"), gt(messages.createdAt, row.createdAt)))
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.role, "assistant"),
+        gt(messages.createdAt, row.createdAt),
+        ne(messages.id, messageId),
+      ),
+    )
     .limit(1);
   if (laterReply) {
     return { status: 403, error: "This message is locked — the DM has already replied" };
@@ -978,9 +947,7 @@ router.patch("/:id/messages/:messageId", async (req, res) => {
 });
 
 router.delete("/:id/messages/:messageId", async (req, res) => {
-  const result = await findModifiableMessage(req.params.id, req.params.messageId, req.user, {
-    allowAdminDeleteLatest: true,
-  });
+  const result = await findModifiableMessage(req.params.id, req.params.messageId, req.user);
   if (result.error) {
     return res.status(result.status).json({ error: result.error });
   }

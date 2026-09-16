@@ -85,6 +85,16 @@ export default function ChatView({
   // conversation switch renders instantly, so revisiting a long
   // conversation never forces a replay.
   const [liveMessageIds, setLiveMessageIds] = useState(() => new Set());
+  // An edited DM reply renders its new text plainly rather than replaying
+  // the typewriter over it.
+  function settleEdited(messageId) {
+    setLiveMessageIds((prev) => {
+      if (!prev.has(messageId)) return prev;
+      const next = new Set(prev);
+      next.delete(messageId);
+      return next;
+    });
+  }
   const [typingSender, setTypingSender] = useState(null);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -191,6 +201,7 @@ export default function ChatView({
           setActiveCombat((prev) =>
             prev ? { ...prev, messages: prev.messages.map((m) => (m.id === message.id ? message : m)) } : prev,
           );
+          settleEdited(message.id);
           return;
         }
         if (type === "combat-message-deleted") {
@@ -209,6 +220,7 @@ export default function ChatView({
         }
         if (type === "updated") {
           setMessages((prev) => prev.map((m) => (m.id === message.id ? message : m)));
+          settleEdited(message.id);
         } else if (type === "deleted") {
           setMessages((prev) => prev.filter((m) => m.id !== message.id));
         } else {
@@ -345,16 +357,12 @@ export default function ChatView({
     return list.slice(index + 1).some((m) => m.role === "assistant");
   }
 
-  function canEdit(list, m, index) {
-    return isActiveChapter && m.role === "user" && (isAdmin || m.authorUsername === username) && !isLocked(list, index);
-  }
-
-  // Delete-only escape hatch, mirroring the server's allowAdminDeleteLatest:
-  // admin can always delete the single most recent message in the list, even
-  // the DM's own reply, to cleanly retry a bad response - never extended to
-  // editing.
-  function canDelete(list, m, index) {
-    return canEdit(list, m, index) || (isAdmin && isActiveChapter && index === list.length - 1);
+  // One rule for edit and delete: players touch their own messages, the
+  // admin touches anyone's including the DM's - which under the lock means
+  // the DM's latest reply (rewrite a bad beat, or delete it to retry).
+  function canModify(list, m, index) {
+    if (!isActiveChapter || isLocked(list, index)) return false;
+    return isAdmin || (m.role === "user" && m.authorUsername === username);
   }
 
   function startEdit(m, inCombat = false) {
@@ -424,21 +432,17 @@ export default function ChatView({
                   ) : (
                     formatContent(m.content)
                   )}
-                  {m.edited && <span className="edited-label">(edited)</span>}
+                  {m.edited && m.role === "user" && <span className="edited-label">(edited)</span>}
                 </div>
               )}
-              {editingId !== m.id && (canEdit(messages, m, i) || canDelete(messages, m, i)) && (
+              {editingId !== m.id && canModify(messages, m, i) && (
                 <div className="message-actions">
-                  {canEdit(messages, m, i) && (
-                    <button type="button" onClick={() => startEdit(m, false)} aria-label="Edit message">
-                      ✎
-                    </button>
-                  )}
-                  {canDelete(messages, m, i) && (
-                    <button type="button" onClick={() => handleDeleteMessage(m, false)} aria-label="Delete message">
-                      🗑
-                    </button>
-                  )}
+                  <button type="button" onClick={() => startEdit(m, false)} aria-label="Edit message">
+                    ✎
+                  </button>
+                  <button type="button" onClick={() => handleDeleteMessage(m, false)} aria-label="Delete message">
+                    🗑
+                  </button>
                 </div>
               )}
             </li>
@@ -472,21 +476,17 @@ export default function ChatView({
                     ) : (
                       <div className="bubble">
                         {m.role === "assistant" && liveMessageIds.has(m.id) ? <AnimatedGMReply text={m.content} /> : formatContent(m.content)}
-                        {m.edited && <span className="edited-label">(edited)</span>}
+                        {m.edited && m.role === "user" && <span className="edited-label">(edited)</span>}
                       </div>
                     )}
-                    {editingId !== m.id && (canEdit(activeCombat.messages, m, i) || canDelete(activeCombat.messages, m, i)) && (
+                    {editingId !== m.id && canModify(activeCombat.messages, m, i) && (
                       <div className="message-actions">
-                        {canEdit(activeCombat.messages, m, i) && (
-                          <button type="button" onClick={() => startEdit(m, true)} aria-label="Edit message">
-                            ✎
-                          </button>
-                        )}
-                        {canDelete(activeCombat.messages, m, i) && (
-                          <button type="button" onClick={() => handleDeleteMessage(m, true)} aria-label="Delete message">
-                            🗑
-                          </button>
-                        )}
+                        <button type="button" onClick={() => startEdit(m, true)} aria-label="Edit message">
+                          ✎
+                        </button>
+                        <button type="button" onClick={() => handleDeleteMessage(m, true)} aria-label="Delete message">
+                          🗑
+                        </button>
                       </div>
                     )}
                   </li>

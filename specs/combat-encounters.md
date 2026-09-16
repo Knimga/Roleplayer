@@ -234,7 +234,7 @@ combat_messages
 
 Why a separate message table rather than a `combatId` column on
 `messages`: the existing message routes carry subtle rules (chapter lock,
-edit/delete lock-once-DM-replied, admin delete-latest, the cost aggregate,
+edit/delete lock-once-DM-replied, the cost aggregate,
 last-message checks) that would all need a `combatId IS NULL` filter. Combat
 messages need none of those rules — they're ephemeral and never edited — so
 giving them their own table leaves every existing query untouched.
