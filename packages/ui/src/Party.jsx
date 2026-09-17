@@ -39,7 +39,7 @@ export default function Party({ characterName, characterDetails, avatarUrl, desc
             {characterName}
           </span>
           <span className={`party-row__dot${ready ? " is-ready" : ""}`} title={readyLabel} />
-          {woundState && <span className="party-row__health">{woundState}</span>}
+          {woundState && <span className={`party-row__health ${colorClass}`}>{woundState}</span>}
         </div>
       ) : (
         <>

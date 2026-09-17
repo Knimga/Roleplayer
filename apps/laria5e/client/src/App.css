@@ -1481,11 +1481,12 @@
     0 0 26px 7px rgba(46, 166, 153, 0.4);
 }
 
+/* Colored by wound state (.hp-green / .hp-orange / .hp-red from
+   character-hp.md), not the mockup's fixed verdigris. */
 .party-row__health {
   margin-left: auto;
   font-size: 12px;
   font-style: italic;
-  color: #7fd6b4;
 }
 
 .party-member-modal {
