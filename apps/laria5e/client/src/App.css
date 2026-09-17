@@ -1004,12 +1004,12 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   /* Stops in px throughout: mixing % and px put the final stop before the
      earlier ones, which CSS clamps into a hard edge partway down the panel. */
   background:
-    linear-gradient(180deg, rgba(46, 166, 153, 0.13) 0, rgba(46, 166, 153, 0.055) 120px,
-      rgba(46, 166, 153, 0.014) 210px, rgba(46, 166, 153, 0) 300px),
+    linear-gradient(180deg, rgba(46, 166, 153, 0.13) 0, rgba(46, 166, 153, 0.055) 200px,
+      rgba(46, 166, 153, 0.014) 350px, rgba(46, 166, 153, 0) 500px),
     linear-gradient(0deg, rgba(129, 74, 120, 0.08) 0, rgba(129, 74, 120, 0.03) 126px,
       rgba(129, 74, 120, 0) 280px);
 }

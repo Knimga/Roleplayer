@@ -944,11 +944,11 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  /* Same reach and falloff as Laria's right-panel glow (300px, three
+  gap: 10px;
+  /* Same reach and falloff as Laria's right-panel glow (500px, three
      stops), a touch stronger than the old 0.03 -> 200px single stop. */
-  background: linear-gradient(180deg, rgba(47, 228, 255, 0.05) 0, rgba(47, 228, 255, 0.022) 120px,
-    rgba(47, 228, 255, 0.006) 210px, rgba(47, 228, 255, 0) 300px);
+  background: linear-gradient(180deg, rgba(47, 228, 255, 0.05) 0, rgba(47, 228, 255, 0.022) 200px,
+    rgba(47, 228, 255, 0.006) 350px, rgba(47, 228, 255, 0) 500px);
 }
 
 #character-name-header {
