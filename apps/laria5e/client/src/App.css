@@ -1060,10 +1060,15 @@
   margin: 6px 0 0;
 }
 
-#hp-tracker {
+#hp-tracker,
+#mp-tracker {
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+#mp-tracker {
+  margin-top: 8px;
 }
 
 .hp-bar-track {
@@ -1132,7 +1137,8 @@
   font-style: italic;
 }
 
-#hp-tracker [role="alert"] {
+#hp-tracker [role="alert"],
+#mp-tracker [role="alert"] {
   color: var(--danger);
   font-size: 12px;
   text-align: center;
@@ -1221,6 +1227,15 @@
 
 .hp-bar-fill.hp-neutral {
   background-color: var(--text-dim);
+}
+
+/* MP: a fixed pale blue at every value - no thresholds, unlike HP. */
+.hp-blue {
+  color: #8fb8d6;
+}
+
+.hp-bar-fill.hp-blue {
+  background-color: #8fb8d6;
 }
 
 .hp-bar-fill.hp-green {

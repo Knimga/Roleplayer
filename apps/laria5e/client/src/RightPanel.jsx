@@ -2,6 +2,7 @@ import { useState } from "react";
 import DiceRoller from "./DiceRoller";
 import AvatarUpload from "@roleplayer/ui/AvatarUpload.jsx";
 import HpTracker from "./HpTracker";
+import MpTracker from "./MpTracker";
 import AcTracker from "./AcTracker";
 import CharacterTextField from "@roleplayer/ui/CharacterTextField.jsx";
 import Party from "@roleplayer/ui/Party.jsx";
@@ -20,6 +21,8 @@ export default function RightPanel({
   onAvatarUploaded,
   myHp,
   onHpSaved,
+  myMp,
+  onMpSaved,
   myAc,
   onAcSaved,
   myDescription,
@@ -49,6 +52,7 @@ export default function RightPanel({
           <hr />
           <AvatarUpload conversationId={conversationId} avatarUrl={myAvatarUrl} onUploaded={onAvatarUploaded} />
           <HpTracker conversationId={conversationId} hp={myHp} onSaved={onHpSaved} />
+          <MpTracker conversationId={conversationId} mp={myMp} onSaved={onMpSaved} />
           <AcTracker conversationId={conversationId} ac={myAc} onSaved={onAcSaved} />
           <hr />
           <div className="character-actions-row">

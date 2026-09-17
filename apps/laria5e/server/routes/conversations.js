@@ -250,6 +250,7 @@ router.get("/", async (req, res) => {
       characterGear: conversations.characterGear,
       characterHp: conversations.characterHp,
       characterAc: conversations.characterAc,
+      characterMp: conversations.characterMp,
       characterReady: conversations.characterReady,
       createdAt: conversations.createdAt,
       lastMessageAt: conversations.lastMessageAt,
@@ -333,6 +334,7 @@ router.post("/story", async (req, res) => {
 
   const characterHp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
   const characterAc = Object.fromEntries(users.map((u) => [u.username, DEFAULT_AC]));
+  const characterMp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
   const characterReady = Object.fromEntries(users.map((u) => [u.username, false]));
 
   const [conversation] = await db
@@ -344,6 +346,7 @@ router.post("/story", async (req, res) => {
       characterDetails: details,
       characterHp,
       characterAc,
+      characterMp,
       characterReady,
       lastMessageAt: new Date(),
     })
@@ -686,6 +689,52 @@ router.patch("/:id/ac", async (req, res) => {
   res.json({ characterAc });
 });
 
+// MP: same current/max shape and partial-body merge as HP, but player-only
+// bookkeeping - never folded into the roster the DM reads, so no
+// character-updated publish either (nothing model-facing changed).
+router.patch("/:id/mp", async (req, res) => {
+  const { current, max } = req.body ?? {};
+  if (current === undefined && max === undefined) {
+    return res.status(400).json({ error: "current and/or max is required" });
+  }
+
+  const [conversation] = await db
+    .select({
+      characterMp: conversations.characterMp,
+      storyId: conversations.storyId,
+      createdAt: conversations.createdAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, req.params.id));
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "MP is only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+
+  const existing = conversation.characterMp?.[req.user.username] ?? { current: 0, max: 0 };
+  const merged = {
+    current: current !== undefined ? Number(current) : existing.current,
+    max: max !== undefined ? Number(max) : existing.max,
+  };
+
+  if (!Number.isInteger(merged.max) || merged.max < 0) {
+    return res.status(400).json({ error: "Max MP must be a whole number of 0 or more" });
+  }
+  if (!Number.isInteger(merged.current) || merged.current < 0 || merged.current > merged.max) {
+    return res.status(400).json({ error: "Current MP must be a whole number from 0 to Max MP" });
+  }
+
+  const characterMp = { ...(conversation.characterMp ?? {}), [req.user.username]: merged };
+
+  await db.update(conversations).set({ characterMp }).where(eq(conversations.id, req.params.id));
+
+  res.json({ characterMp });
+});
+
 router.patch("/:id/ready", async (req, res) => {
   const { ready } = req.body ?? {};
   if (typeof ready !== "boolean") {
@@ -810,6 +859,7 @@ router.post("/:id/new-chapter", async (req, res) => {
         characterGear: conversation.characterGear,
         characterHp: conversation.characterHp,
         characterAc: conversation.characterAc,
+        characterMp: conversation.characterMp,
         // Deliberately not carried over from the outgoing chapter, unlike
         // every other field here — "ready" is a signal about the round in
         // progress, and a new chapter starts a fresh scene with none yet.

@@ -100,6 +100,8 @@ function App() {
         onAvatarUploaded={refreshConversations}
         myHp={selectedConversation?.characterHp?.[session.username]}
         onHpSaved={refreshConversations}
+        myMp={selectedConversation?.characterMp?.[session.username]}
+        onMpSaved={refreshConversations}
         myAc={selectedConversation?.characterAc?.[session.username]}
         onAcSaved={refreshConversations}
         myDescription={selectedConversation?.characterDescriptions?.[session.username]}

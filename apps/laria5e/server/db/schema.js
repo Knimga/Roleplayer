@@ -25,6 +25,7 @@ export const conversations = pgTable("conversations", {
   characterGear: jsonb("character_gear"), // { "<username>": "<weapons & gear, <=500 chars>" }, mutable
   characterHp: jsonb("character_hp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation
   characterAc: jsonb("character_ac"), // { "<username>": <int> }, mutable; seeded to 16 at Story creation, edited in place
+  characterMp: jsonb("character_mp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation; never sent to the LLM
   characterReady: jsonb("character_ready"), // { "<username>": <bool> }, mutable; seeded false/false at Story/chapter creation (never carried over); reset false/false when the DM replies
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
