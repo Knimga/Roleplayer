@@ -15,9 +15,17 @@
 - `packages/mcp-core`: empty placeholder. Checked directly — each app's `mcp/server.js` and `dice.js` are genuinely different (different tools, different dice math, different valid-sides sets), so there's little real shared surface here.
 - Deliberately **not** shared, and shouldn't be: `schema.js`, `routes/conversations.js` (character-field-shaped), `DiceRoller.jsx`/`RightPanel.jsx`/the Hp/Sp/Ac trackers (game-specific mechanics — evaluated and declined: different field names, CSS ids, icons, and cyberpunk-red's HP tracker renders a Wound State line laria5e has no equivalent for), `MapModal.jsx`, `lib/claude.js` (per-app prompt assembly and model choice), the `server/combat/` folder (the game's combat module: what an enemy is, its stat tables and lookups, its dice, its mechanics prompt — everything Cyberpunk- or Laria-specific about a fight in one place, consumed by the shared engine through one exported object), all of `mcp/`, and every DM/combat system prompt.
 
-## Handling Code Changes
+## Scope of Code Changes
 
 When requested to make a code change, make sure it's absolutely clear whether the change should be something shared between apps, or app-specific. Confirm with the user if needed. When developing for a single app, always be on the lookout for things you can recommend to be shared (don't automatically execute on sharing them, just make recommendations).
+
+## Owning Git Commits
+
+You are the owner of grouping code changes logically into Git commits - your user does not necessarily care how these are managed. Keep in mind that MCP documents are where your user will make frequent changes, some small, some large, so beware of committing these too frequently.
+
+## Git Push
+
+This repo is pointed to a public repo on GitHub, and commits to that repo automatically trigger production redeploys. Therefore, never do a Git push unless your user specifically requests it.
 
 ## Hosting
 
