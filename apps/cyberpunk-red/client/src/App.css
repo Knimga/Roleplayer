@@ -945,7 +945,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: linear-gradient(180deg, rgba(47, 228, 255, 0.03), transparent 200px);
+  /* Same reach and falloff as Laria's right-panel glow (300px, three
+     stops), a touch stronger than the old 0.03 -> 200px single stop. */
+  background: linear-gradient(180deg, rgba(47, 228, 255, 0.05) 0%, rgba(47, 228, 255, 0.022) 40%,
+    rgba(47, 228, 255, 0.006) 70%, rgba(47, 228, 255, 0) 300px);
 }
 
 #character-name-header {
