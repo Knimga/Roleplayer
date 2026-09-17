@@ -551,9 +551,11 @@ flat on the enemy) exports three things:
   the injected stat block so no second call is needed. This is the D&D
   case the fixed-shape design got wrong — ~18 skills per enemy is waste to
   precompute and trivial to derive once when Stealth actually comes up.
-  Example: Laria `lookup_enemy_skill({ enemy, skill })` → proficiency +
-  ability modifier from the stored tier/type. Cyberpunk may need none in
-  practice, since the Combat Number already covers attack and defense.
+  Example: a Laria `lookup_enemy_skill({ enemy, skill })` → proficiency +
+  ability modifier from the stored tier/type. In practice neither game
+  uses one yet: both route skill-shaped checks through an MCP `npc_check`
+  tool shared by the narrative and combat DMs instead (see §9), because a
+  lookup here is reachable only from inside a fight.
 
 The handoff render prints each enemy's stat block as it currently stands;
 it grows as lookups land (see the cache note in §5.3). The combat core's
@@ -602,16 +604,24 @@ As built (after the 2026-09-14 reorganization — see the Status section):
 
 ## 9. Prerequisites and honest caveats
 
-- **Laria has no combat rules doc.** `laria-reference-files.md` promises
-  one; `mcp/docs/` has only lore. Smaller gap than it first looked, though:
-  since Laria borrows the shared phase-based procedure (§5.3.1) for now,
-  `laria-combat-system-prompt.md` only needs D&D's *numbers* — which die,
-  crit/save mechanics, attack/damage math, status thresholds — not a whole
-  competing turn structure. Still needed before Phase 2's Laria
-  `statInputsSchema`/`generateCoreStats` can be written. Until authored, the
-  mode can run there, but the combat DM works from Claude's general 5e
-  knowledge rather than house rules. Cyberpunk is the proving ground either
-  way, since its docs already exist.
+- **Laria's stat tables are groundwork with placeholder values**
+  (2026-09-16). The shape is settled in `apps/laria5e/server/combat/enemy-stats.js`:
+  six abilities held at a *tier* (untrained / trained / expert / master, one
+  bonus each) rather than a granular score; a class (the eleven 5e classes
+  plus the homebrew Shaman) sets ability tiers, standout skills, which of the three
+  classic saves (fortitude/CON, reflex/DEX, will/WIS) it's proficient in, a
+  passive AC bonus, and behavior; a power level 1–5 sets
+  the proficiency bonus, a small AC bonus, a shift along the tier ladder,
+  and durability; melee/ranged weapons carry damage dice. Abilities and
+  saves are precomputed into the block; skills are not — as in Cyberpunk,
+  `npc_check` in Laria's MCP server (class + power level + skill / ability
+  / save → lookup and roll in one call) serves both DMs, the combat DM
+  passing class and power level from the enemy's block. A combat-only
+  `lookup_enemy_skill` was built first and replaced by this the same day. Every number in the tables is a stand-in —
+  with the illustrative +0/+5/+10/+15 tier bonuses a boss's attack sits
+  around +20 against a d20, so tuning is the next step, not more structure.
+  Laria still has no combat rules doc; the combat prompt describes how the
+  block is used and leaves the values to the tables.
 - **The "shared phase procedure for now" choice is deliberately temporary**
   (§5.3.1) — it's simplicity for the combat DM to track reliably, not a
   claim that Cyberpunk and D&D combat are the same thing. An initiative

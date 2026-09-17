@@ -1,20 +1,18 @@
 # Check Triggers
 
-Purpose: fast lookup. Determines which skill/ability to use for a skill check. For DC, advantage, rolling → see `check-resolution.md`. Saving throws (effect-initiated, not player-action-initiated) → see `saving-throws.md`.
+Purpose: fast lookup. Determines which skill/ability to use for a skill check. For DC, advantage, rolling → see `skill-check-resolution.md`. Saving throws (effect-initiated, not player-action-initiated) → see `saving-throws.md`.
 
 ## Instructions
 
 1. Determine who rolls (see Who Rolls section).
-1. Match the action(s) to a row in the Skill Table. If multiple rows fit, use the Disambiguation table.
-2. Once the skill or ability score roll is identified, move to `check-resolution.md` for conducting the roll.
-
-**Skill check vs. saving throw:** if the outcome depends on how the character responds — their approach, technique, or judgment — it's a skill check, even if the DM initiated it. If a defined harmful effect with its own DC is simply being imposed on the character and they're passively resisting it (a spell, a trap's listed save, a poison), it's a saving throw — see `saving-throws.md`, not this file.
+2. Match the action(s) to a row in the Skill Table. If multiple rows fit, use the Disambiguation table.
+3. Once the skill or ability score roll is identified, move to `skill-check-resolution.md` for conducting the roll.
 
 ## Who Rolls
 
 A skill check can be required for a player, an NPC, or both at once — resolve each affected creature independently, by whichever of these applies to it:
 
-- **NPC/enemy**: roll it yourself using the dice tool rather than inventing a result. Do not request it or wait on anyone.
+- **NPC/enemy**: roll it yourself with `npc_check` (see `skill-check-resolution.md`, NPC Rolls) rather than inventing a result. Do not request it or wait on anyone.
 - **Player**: request the roll clearly and wait for their result. Never roll on their behalf.
 
 ## Skill Table
@@ -56,4 +54,6 @@ Use when the action is uncertain/interesting but doesn't match a skill above —
 | Sneaking vs. noticing sneaking | Stealth | Perception | Stealth is rolled by the one hiding; Perception is the opposing side. |
 
 ## Check Request for Players
-When a check is warranted from a player, ask for it in your response back. Do NOT roll it for them. Make the ask clearly - on its own line, accented in bold.
+When a check is warranted from a player, ask for it in your response back. Do NOT roll it for them. Make the ask clearly - on its own line, accented in bold - naming the skill or ability. Never state the DC.
+
+Decide whether advantage or disadvantage applies (`skill-check-resolution.md`, Advantage / Disadvantage) and say so in the request when it does — "**Roll Stealth, with disadvantage.**" A request that doesn't mention either is a flat roll; the player sets their own roller accordingly. If the player already rolled unprompted (they sprang an ambush and posted an attack roll), take the roll as made — don't retroactively ask for it again with advantage or disadvantage.

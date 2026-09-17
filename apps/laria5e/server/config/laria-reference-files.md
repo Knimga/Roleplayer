@@ -1,5 +1,5 @@
 # Using MCP Documents
-Docs exist for: core rules, combat, lore (world/factions/NPCs), locations.
+Docs exist for: core rules, lore (world/factions/NPCs), locations.
 Verify homebrew-specific rules against docs even if they resemble standard
 rules you know.
 

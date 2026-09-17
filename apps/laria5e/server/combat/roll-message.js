@@ -23,8 +23,9 @@ const SKILLS = [
   "Performance",
   "Persuasion",
 ];
-// Mirrors client/src/DiceRoller.jsx's ABILITIES - same sync-manually pattern.
-const ABILITIES = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
+// Mirrors client/src/DiceRoller.jsx's SAVES - same sync-manually pattern.
+// Laria's three classic saves (mcp/docs/saving-throws.md), not 5e's six.
+const SAVES = ["Fortitude", "Reflex", "Will"];
 const ADVANTAGE_STATES = ["adv", "flat", "dis"];
 const DAMAGE_DIE_SIDES = [4, 6, 8, 10, 12, 20];
 const MAX_ROLL_DESCRIPTION_LENGTH = 80;
@@ -59,7 +60,7 @@ function formatDiceRowsMessage({ label, rowResults, modifier, crit }) {
 // text to post - { content } - or { error } for a 400. Shared by the
 // narrative /:id/roll route and the combat /combats/:id/roll route so a roll
 // reads identically wherever it lands (specs/combat-encounters.md §5.3).
-export function buildRollMessage({ rollType, skill, ability, advantage, diceRows, crit, description, modifier } = {}) {
+export function buildRollMessage({ rollType, skill, save, advantage, diceRows, crit, description, modifier } = {}) {
   if (!["skill", "attack", "save", "damage", "misc"].includes(rollType)) {
     return { error: "Invalid roll type" };
   }
@@ -106,10 +107,10 @@ export function buildRollMessage({ rollType, skill, ability, advantage, diceRows
   if (isSkill && !SKILLS.includes(skill)) {
     return { error: "A valid skill is required" };
   }
-  if (isSave && !ABILITIES.includes(ability)) {
-    return { error: "A valid ability is required" };
+  if (isSave && !SAVES.includes(save)) {
+    return { error: "A valid save is required" };
   }
-  const label = isSkill ? skill : isSave ? `${ability} Save` : "Attack";
+  const label = isSkill ? skill : isSave ? `${save} Save` : "Attack";
   const adv = ADVANTAGE_STATES.includes(advantage) ? advantage : "flat";
   const { kept, isCrit, isFumble } = rollD20Check(adv);
   return { content: formatSkillAttackMessage({ label, kept, advantage: adv, modifier: mod, isCrit, isFumble }) };

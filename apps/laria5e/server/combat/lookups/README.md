@@ -7,27 +7,32 @@ stored fields, **persists the result at `path` in `enemy.stats`**, and
 returns it. So the same enemy and the same input always give the same
 number, and after the first call it's already in the injected stat block.
 
-This is the D&D case the contract was designed for: ~18 skills per enemy
-is waste to precompute and trivial to derive once when Stealth actually
-comes up. Shape (see `packages/server-core/src/combat/README.md`):
+The engine adds an `enemy` (name) argument to every lookup's schema itself;
+don't declare it here. Shape (see `packages/server-core/src/combat/README.md`):
 
 ```js
-export const lookupEnemySkill = {
-  name: "lookup_enemy_skill",
-  description: "The enemy's bonus for one skill, from its stored stats.",
-  input_schema: {
-    required: ["skill"],
-    properties: { skill: { type: "string", enum: SKILLS } },
-  },
-  // `enemy` is the whole enemy object (creatureType, threatTier, stats, ...).
-  resolve(enemy, { skill }) {
-    return { path: ["skills", skill], value: proficiency(enemy) + abilityMod(enemy, skill) };
+export const lookupSomething = {
+  name: "lookup_something",
+  description: "...",
+  input_schema: { required: [...], properties: { ... } },
+  // `enemy` is the whole enemy object (class, powerLevel, stats, ...).
+  resolve(enemy, input) {
+    return { path: ["something", input.key], value: /* from ../enemy-stats.js */ };
   },
 };
 ```
 
-The engine adds an `enemy` (name) argument to every lookup's schema itself;
-don't declare it here.
+Laria currently needs none. Abilities and saves are precomputed into the
+block at handoff (six and three is cheap). Skills are the long tail — most
+enemies never roll most of them — and were the obvious candidate, but a
+lookup here is only reachable by the combat DM, and the narrative DM needs
+the same numbers for a guard or a merchant. So, as in Cyberpunk, one MCP
+tool serves both: `npc_check` (`mcp/server.js`) takes a class, a power
+level, and a skill / ability / save, looks the bonus up from
+`../enemy-stats.js`, and rolls it in one call. The combat DM passes the
+class and power level from the enemy's block, so the same enemy always
+gets the same number without anything being persisted.
 
-Nothing here yet - pending Laria's combat rules doc and the stat tables in
-`../enemy-stats.js`.
+A lookup earns its place here only for something that is both expensive to
+precompute for every enemy and needed rarely — a specific spell, a class
+feature.

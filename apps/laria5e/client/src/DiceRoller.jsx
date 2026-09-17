@@ -22,13 +22,15 @@ const SKILLS = [
   "Performance",
   "Persuasion",
 ];
-const ABILITIES = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
+// Laria uses the classic three saves, not 5e's six ability saves - see
+// mcp/docs/saving-throws.md. Mirrored in server/combat/roll-message.js.
+const SAVES = ["Fortitude", "Reflex", "Will"];
 const DIE_TYPES = ["4", "6", "8", "10", "12", "20"];
 
 function emptyFields() {
   return {
     skill: "",
-    ability: "",
+    save: "",
     diceRows: [{ count: "1", dieType: "" }],
     modifier: "",
     adv: "flat",
@@ -79,7 +81,7 @@ export default function DiceRoller({ conversationId, activeCombatId = null }) {
     (isSkill
       ? !fields.skill
       : isSave
-        ? !fields.ability
+        ? !fields.save
         : isDamage
           ? !diceRowsReady
           : isMisc
@@ -119,7 +121,7 @@ export default function DiceRoller({ conversationId, activeCombatId = null }) {
       const payload = {
         rollType,
         skill: isSkill ? fields.skill : undefined,
-        ability: isSave ? fields.ability : undefined,
+        save: isSave ? fields.save : undefined,
         advantage: usesAdvantage ? fields.adv : undefined,
         diceRows: usesDiceRows ? parsedRows.map((r) => ({ count: r.count, dieType: Number(r.dieType) })) : undefined,
         crit: isDamage ? fields.crit : undefined,
@@ -194,16 +196,16 @@ export default function DiceRoller({ conversationId, activeCombatId = null }) {
 
       {isSave && (
         <label>
-          Ability
+          Save
           <select
-            className={fields.ability ? "" : "field-required-empty"}
-            value={fields.ability}
-            onChange={(e) => update({ ability: e.target.value })}
+            className={fields.save ? "" : "field-required-empty"}
+            value={fields.save}
+            onChange={(e) => update({ save: e.target.value })}
           >
-            <option value="">Choose an ability…</option>
-            {ABILITIES.map((a) => (
-              <option key={a} value={a}>
-                {a}
+            <option value="">Choose a save…</option>
+            {SAVES.map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </select>

@@ -70,7 +70,8 @@ export const combatGame = {
 
 An enemy is one flat object: the engine's `name` / `description` /
 `motive` / `notes`, plus whatever the game's schema adds (Cyberpunk: `tier`,
-`archetype`, `meleeWeapon`, `rangedWeapon`; Laria: `creatureType`, `threatTier`), plus `stats`,
+`archetype`, `meleeWeapon`, `rangedWeapon`; Laria: `creatureType`, `class`, `powerLevel`,
+`meleeWeapon`, `rangedWeapon`), plus `stats`,
 which only the engine writes (from `generateCoreStats` at handoff and from
 lookups during the fight). `buildCombatContext` renders the game's fields
 as "Type: …" without knowing their names.
