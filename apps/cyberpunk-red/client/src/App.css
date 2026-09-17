@@ -72,7 +72,9 @@
   width: 240px;
   flex-shrink: 0;
   height: 100vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--border, #262a38);
   box-sizing: border-box;
   padding: 12px 8px;
@@ -115,8 +117,9 @@
 }
 
 #settings-row {
-  margin-top: 12px;
+  margin-top: auto;
   margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .story-icon {
@@ -128,6 +131,15 @@
   list-style: none;
   padding: 0;
   margin: 0;
+}
+
+/* The story/chapter list is the one thing that scrolls; the 12px keeps a
+   gap above Settings when the list is long enough to reach it. */
+#sidebar > ul {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-bottom: 12px;
 }
 
 #sidebar li {
