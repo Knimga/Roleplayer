@@ -94,6 +94,7 @@ export default function RightPanel({
             hp={partyHp}
             ready={partyReady}
             detailField="playerClass"
+            layout="row"
           />
           <hr />
         </>
