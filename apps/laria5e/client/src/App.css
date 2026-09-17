@@ -1587,7 +1587,10 @@
   margin-top: 4px;
   border-radius: 3px;
   border: 1px solid var(--border, #38281d);
-  background: var(--bg);
+  /* Translucent like the adv toggle, not the opaque --bg: the panel's
+     top-to-bottom glow shows through the fields instead of stopping at
+     their edges. */
+  background: rgba(28, 19, 16, 0.5);
   color: var(--text-h);
   box-sizing: border-box;
 }
