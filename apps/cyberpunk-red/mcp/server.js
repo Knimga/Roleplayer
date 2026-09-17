@@ -97,15 +97,16 @@ export function createGameMcpServer() {
   server.registerTool(
     "npc_check",
     {
-      description: `Roll a STAT check for an NPC that has no stat block, in one call: you name the kind of NPC and which STAT the action falls under, this looks up the NPC's total and rolls 1d10 on it. Never use this for player rolls. Decide the STAT yourself rather than consulting a skill list - ${STATS.map((s) => `${s}: ${STAT_HINTS[s]}`).join("; ")}. Archetypes: ${ARCHETYPE_DESCRIPTION} Tier is skill/danger, 1 untrained to 5 boss.`,
+      description: `Roll a STAT check for an NPC that has no stat block, in one call: you name the kind of NPC and which STAT the action falls under, this looks up the NPC's total and rolls 1d10 on it. Pass the DV when there is one (not for a check opposed by a player's roll) - the result then says whether the roll beat it. Never use this for player rolls. Decide the STAT yourself rather than consulting a skill list - ${STATS.map((s) => `${s}: ${STAT_HINTS[s]}`).join("; ")}. Archetypes: ${ARCHETYPE_DESCRIPTION} Tier is skill/danger, 1 untrained to 5 boss.`,
       inputSchema: {
         archetype: z.enum(ARCHETYPE_NAMES).describe("What kind of NPC this is, judged from the fiction."),
         tier: z.number().int().min(1).max(5).describe("1 untrained, 2 mook, 3 professional, 4 elite, 5 boss."),
         stat: z.enum(STATS).describe("The STAT the action falls under."),
+        dv: z.number().int().optional().describe("The DV to beat, when the check is against one. Decide it before you call; the result reports success. Omit for a check opposed by a player's roll."),
         purpose: z.string().optional().describe("What the check is for, e.g. 'notice Vidik on the catwalk' - echoed back so the result reads clearly."),
       },
     },
-    async ({ archetype, tier, stat, purpose }) => {
+    async ({ archetype, tier, stat, dv, purpose }) => {
       if (!TIER_NUMBERS.includes(tier)) {
         return { content: [{ type: "text", text: `tier must be one of ${TIER_NUMBERS.join(", ")}` }], isError: true };
       }
@@ -115,9 +116,12 @@ export function createGameMcpServer() {
       const critPrefix =
         critResult === "success" ? "Critical Success! " : critResult === "failure" ? "Critical Failure! " : "";
       const label = purpose ? `${purpose} - ` : "";
-      const summary = `${label}${critPrefix}Rolled ${total}! (${stat} ${modifier} + ${formatDiceBreakdown(rolls, 10, critResult)})`;
+      // Every compared roll in this game must beat its target; a tie fails.
+      const success = Number.isInteger(dv) ? total > dv : null;
+      const dvNote = success === null ? "" : ` vs DV ${dv} - ${success ? "success" : "failure"}`;
+      const summary = `${label}${critPrefix}Rolled ${total}! (${stat} ${modifier} + ${formatDiceBreakdown(rolls, 10, critResult)})${dvNote}`;
 
-      return { content: [{ type: "text", text: JSON.stringify({ statTotal: modifier, total, summary, critResult }) }] };
+      return { content: [{ type: "text", text: JSON.stringify({ statTotal: modifier, total, success, summary, critResult }) }] };
     },
   );
 

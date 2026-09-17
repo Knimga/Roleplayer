@@ -19,7 +19,7 @@ When a player does something that might need two skill checks, ask for them. Ex.
 
 ## Difficulty Values (core DV guidance)
 
-The DV is the number a player must meet or beat, in order to be successful at a skill task. Set a task's DV by how hard it is:
+The DV is the number a player must beat in order to be successful at a skill task — a tie fails. Set a task's DV by how hard it is:
 
 | Difficulty | DV | Description |
 |---|---|---|
