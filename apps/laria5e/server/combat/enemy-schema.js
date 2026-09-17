@@ -15,7 +15,7 @@ export const enemySchema = withBaseEnemyFields({
   properties: {
     creatureType: {
       type: "string",
-      description: "What it is, in 5e terms: 'goblin', 'bandit captain', 'ogre', 'cult fanatic', 'wolf'. Named NPCs: the closest creature or profession.",
+      description: "What it is, in D&D terms: 'goblin', 'bandit captain', 'ogre', 'cult fanatic', 'wolf'. Named NPCs: the closest creature or profession.",
     },
     class: {
       type: "string",

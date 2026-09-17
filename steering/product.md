@@ -5,7 +5,7 @@
 This monorepo hosts two shared web apps built on the same pattern: two players collaboratively roleplay with Claude as the Dungeon Master. Each app runs its own tabletop game system as the foundation:
 
 - **Cyberpunk Red** (`apps/cyberpunk-red`) — the Cyberpunk Red tabletop system.
-- **Laria 5e** (`apps/laria5e`) — the D&D 5e tabletop system.
+- **Laria 5e** (`apps/laria5e`) — a D&D tabletop system that combines 5e with other editions and homebrew systems.
 
 ## Users
 
