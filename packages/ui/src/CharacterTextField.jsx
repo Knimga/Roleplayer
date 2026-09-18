@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useModalClose } from "./useModalClose.js";
 
 const MAX_LENGTH = 500;
 
@@ -23,9 +24,16 @@ export default function CharacterTextField({ conversationId, icon, label, button
     setExpanded(true);
   }
 
+  // The modal's exit animation plays before it unmounts (useModalClose);
+  // the hook lives here rather than in a child because the modal is
+  // conditionally rendered by this component's own `expanded` state.
+  const { overlayClass, requestClose } = useModalClose();
+
   function cancel() {
-    setExpanded(false);
-    setError(null);
+    requestClose(() => {
+      setExpanded(false);
+      setError(null);
+    });
   }
 
   async function save() {
@@ -33,7 +41,7 @@ export default function CharacterTextField({ conversationId, icon, label, button
     setError(null);
     try {
       await onSave(conversationId, draft);
-      setExpanded(false);
+      requestClose(() => setExpanded(false));
       onSaved?.();
     } catch (err) {
       setError(err.message);
@@ -51,7 +59,7 @@ export default function CharacterTextField({ conversationId, icon, label, button
         <span className="action-label">{buttonLabel}</span>
       </div>
       {expanded && (
-        <div className="modal-overlay" onClick={cancel}>
+        <div className={overlayClass} onClick={cancel}>
           <div className="modal-panel wide" onClick={(e) => e.stopPropagation()}>
             <h2>{label}</h2>
             <textarea autoFocus maxLength={MAX_LENGTH} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { listUsers } from "@roleplayer/core/api/auth.js";
 import { createStory } from "@roleplayer/core/api/conversations.js";
+import { useModalClose } from "./useModalClose.js";
 
 function capitalize(name) {
   const trimmed = name.trim();
@@ -19,6 +20,7 @@ function isValidLevel(level) {
 // app supplies its own field name, label text, and valid options rather
 // than this component knowing either game's terms.
 export default function NewStoryModal({ onCreated, onCancel, detailField, detailLabel, detailLabelPlural, detailOptions }) {
+  const { overlayClass, requestClose } = useModalClose();
   const [roster, setRoster] = useState([]);
   const [names, setNames] = useState({});
   const [details, setDetails] = useState({});
@@ -56,7 +58,7 @@ export default function NewStoryModal({ onCreated, onCancel, detailField, detail
         ]),
       );
       const conversation = await createStory(characterNames, characterDetails);
-      onCreated(conversation.id);
+      requestClose(() => onCreated(conversation.id));
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -64,7 +66,7 @@ export default function NewStoryModal({ onCreated, onCancel, detailField, detail
   }
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className={overlayClass} onClick={() => requestClose(onCancel)}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <h2>New Story</h2>
         <p className="modal-subtitle">
@@ -113,7 +115,7 @@ export default function NewStoryModal({ onCreated, onCancel, detailField, detail
           ))}
           {error && <p role="alert">{error}</p>}
           <div className="modal-actions">
-            <button type="button" onClick={onCancel}>
+            <button type="button" onClick={() => requestClose(onCancel)}>
               Cancel
             </button>
             <button type="submit" disabled={!allFilled || submitting}>

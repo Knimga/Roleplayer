@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useModalClose } from "@roleplayer/ui/useModalClose.js";
 
 const MAX_ZOOM_MULTIPLIER = 4; // how far in a user can zoom beyond the fitted "contain" scale
 const ZOOM_STEP = 1.15; // scale multiplier applied per wheel notch
 const DRAG_THRESHOLD_PX = 3; // movement below this doesn't count as a drag, just click jitter
 
 export default function MapModal({ onClose }) {
+  const { overlayClass, requestClose } = useModalClose();
   const containerRef = useRef(null);
   const naturalSizeRef = useRef(null); // { width, height }, set once the image loads
   const viewRef = useRef(null); // mirrors `view` state, read inside event listeners so they never see a stale value
@@ -148,11 +150,11 @@ export default function MapModal({ onClose }) {
       draggedRef.current = false;
       return;
     }
-    onClose();
+    requestClose(onClose);
   }
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick}>
+    <div className={overlayClass} onClick={handleOverlayClick}>
       <div className="modal-panel map" onClick={(e) => e.stopPropagation()}>
         <div
           ref={containerRef}

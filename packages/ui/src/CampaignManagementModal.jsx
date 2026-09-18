@@ -8,6 +8,7 @@ import {
   revertMilestone,
 } from "@roleplayer/core/api/stories.js";
 import ErrorBoundary from "./ErrorBoundary.jsx";
+import { useModalClose } from "./useModalClose.js";
 
 const PREMISE_TYPES = ["Person", "Faction/Organization", "System", "Force", "Hybrid"];
 const AWARENESS_LEVELS = ["unaware", "suspects", "aware", "hunting"];
@@ -64,6 +65,7 @@ function loadStoredDraft(storyId) {
 // editable tab, since a drifting rewrite is corrected here). See
 // specs/campaign-situation.md.
 export default function CampaignManagementModal({ storyId, onClose }) {
+  const { overlayClass, requestClose } = useModalClose();
   const [activeTab, setActiveTab] = useState("generate");
   const [campaignInput, setCampaignInput] = useState("");
   // Read once on mount (storyId is fixed for this modal's lifetime - LeftPanel
@@ -223,7 +225,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className={overlayClass} onClick={() => requestClose(onClose)}>
       <div className="modal-panel wide campaign-management-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Campaign Management</h2>
 
@@ -253,7 +255,7 @@ export default function CampaignManagementModal({ storyId, onClose }) {
                     disabled={generating}
                   />
                   <div className="modal-actions">
-                    <button type="button" onClick={onClose} disabled={generating}>
+                    <button type="button" onClick={() => requestClose(onClose)} disabled={generating}>
                       Cancel
                     </button>
                     <button type="button" onClick={handleGenerate} disabled={!campaignInput.trim() || generating}>

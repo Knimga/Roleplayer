@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { generateChapterSummary, createNewChapter } from "@roleplayer/core/api/conversations.js";
+import { useModalClose } from "./useModalClose.js";
 
 const MAX_SUMMARY_LENGTH = 6000;
 
 export default function NewChapterModal({ conversationId, onCreated, onCancel }) {
+  const { overlayClass, requestClose } = useModalClose();
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -33,7 +35,7 @@ export default function NewChapterModal({ conversationId, onCreated, onCancel })
     setError(null);
     try {
       const chapter = await createNewChapter(conversationId, summary);
-      onCreated(chapter.id);
+      requestClose(() => onCreated(chapter.id));
     } catch (err) {
       setError(err.message);
       setCreating(false);
@@ -41,7 +43,7 @@ export default function NewChapterModal({ conversationId, onCreated, onCancel })
   }
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className={overlayClass} onClick={() => requestClose(onCancel)}>
       <div className="modal-panel wide" onClick={(e) => e.stopPropagation()}>
         <h2>Start New Chapter</h2>
         <p className="modal-subtitle">
@@ -63,7 +65,7 @@ export default function NewChapterModal({ conversationId, onCreated, onCancel })
             />
             {error && <p role="alert">{error}</p>}
             <div className="modal-actions">
-              <button type="button" onClick={onCancel} disabled={creating}>
+              <button type="button" onClick={() => requestClose(onCancel)} disabled={creating}>
                 Cancel
               </button>
               <button type="button" onClick={handleApprove} disabled={!summary.trim() || creating}>
