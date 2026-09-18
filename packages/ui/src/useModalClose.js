@@ -12,6 +12,13 @@ export const MODAL_EXIT_MS = 140;
 // the "closing" class, plays its exit animation, and only then does fn
 // (onClose, onCancel, onCreated(id), ...) run and unmount it. A second
 // requestClose during the exit is ignored.
+//
+// `closing` is reset right after fn runs, in the same tick so React batches
+// the two updates. That matters for a host that stays mounted across
+// opens (CharacterTextField renders its modal from its own `expanded`
+// state): without the reset the flag would stick at true, every later
+// requestClose would be ignored, and the next open would render the
+// overlay already faded out. For hosts that unmount, the reset is a no-op.
 export function useModalClose() {
   const [closing, setClosing] = useState(false);
   const timerRef = useRef(null);
@@ -21,7 +28,10 @@ export function useModalClose() {
   function requestClose(fn) {
     if (closing) return;
     setClosing(true);
-    timerRef.current = setTimeout(() => fn?.(), MODAL_EXIT_MS);
+    timerRef.current = setTimeout(() => {
+      fn?.();
+      setClosing(false);
+    }, MODAL_EXIT_MS);
   }
 
   return { closing, overlayClass: `modal-overlay${closing ? " closing" : ""}`, requestClose };
