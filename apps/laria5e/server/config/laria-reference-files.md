@@ -10,5 +10,6 @@ rules you know.
 - `cities-and-towns.md` - when the party arrives at, discusses, or asks about a specific city or town not already established in the current scene
 - `factions.md` - when an NPC's allegiance matters, or a scene touches the ongoing war's political dimension
 - `concepts-and-artifacts.md` - when a scene involves dark magic, a named artifact (black tomes, Demonic War relics), the Arcane Laws, or Wyrdkin lore
+- `random-encounters.md` - when the players move through or linger in unsafe ground (a road between regions, a forest, a mountain pass, the war's edge, a city after dark): the odds, the roll, and what is there
 
 Cross-reference convention (applies to every doc above): `[[Name]]` marks a named place, faction, or individual with its own (or an expected) lookup entry elsewhere among these docs. Follow it only where there's a real dependency worth chasing - not for every mention of a generic term.

@@ -10,6 +10,7 @@ Here are the backstory files for each character:
 - `map-nightcity.md` - when players travel to, reference, or ask about a specific place/zone in Night City
 - `factions.md` - when a faction, corporation, or gang becomes relevant to a scene
 - `running-a-gig.md` - when players are looking for work, taking a gig, or getting paid for one
+- `random-encounters.md` - when the players move through or linger in unsafe ground (a Combat Zone block, gang turf, the Hot Zone, the open road): the odds, the roll, and what is there
 - `items-basic.md` - when players shop, loot, or need details on a common item found at markets or on NPCs
 - `gear.md` - when a player buys, uses, or asks about a specific piece of gear
 - `roles.md` - when a role (class) ability or mechanic comes up, for a player or an NPC
