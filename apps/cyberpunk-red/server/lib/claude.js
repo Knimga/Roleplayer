@@ -20,7 +20,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // locally it's unset, so this defaults to Sonnet in dev and Opus in prod without
 // needing a dedicated env var. ANTHROPIC_MODEL overrides either default if needed.
 const MODEL =
-  process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5" : "claude-sonnet-5");
+  process.env.ANTHROPIC_MODEL || (process.env.NODE_ENV === "production" ? "claude-opus-5-5" : "claude-sonnet-5");
 // Cheap and fast on purpose - shared by the situation and leak-check passes
 // (see situation-pass.md / leak-check-pass.md): bounded, structured
 // judgments, not narration or open-ended reasoning.
@@ -305,9 +305,9 @@ export async function generateReply(
 
 // Manual "Start combat" override (specs/combat-encounters.md §5.1): the
 // narrative DM's only job is to produce the handoff from the scene as it
-// stands, with start_combat forced and no other tools. For the DM that
-// narrated a fight without flagging it. With a forced tool call the model
-// usually emits no text, so `text` is often empty here - the caller skips
+// stands, with start_combat the only tool offered. For the DM that narrated
+// a fight without flagging it. The model often emits little or no text
+// alongside the call, so `text` is frequently empty here - the caller skips
 // the cut-in message in that case.
 export async function generateCombatHandoff(
   history,
@@ -335,15 +335,39 @@ export async function generateCombatHandoff(
       "System: The admin has declared that combat has begun in the current scene. Call start_combat now with the handoff built from the scene as it stands. The players' most recent declared hostile action (or, if none was declared, the enemies' first move) is the opening action; leave it unresolved.",
   });
 
-  const response = await client.messages.create({
+  // The call can't be forced: Claude Opus 5.5 rejects tool_choice "tool" and
+  // "any" with a 400 (verified against the API), so it's asked for in the
+  // prompt instead and the model is left to make it. max_tokens is generous
+  // because thinking is on by default on this model class and those tokens
+  // count against the cap - the same trap that truncated chapter summaries.
+  const handoffRequest = {
     model: MODEL,
-    max_tokens: 2048,
+    max_tokens: 4096,
     system,
-    messages,
     tools: [startCombatTool()],
-    tool_choice: { type: "tool", name: "start_combat" },
-  });
-  const call = response.content.find((block) => block.type === "tool_use" && block.name === "start_combat");
+    tool_choice: { type: "auto" },
+  };
+  const findCall = (r) => r.content.find((block) => block.type === "tool_use" && block.name === "start_combat");
+
+  let response = await client.messages.create({ ...handoffRequest, messages });
+  let call = findCall(response);
+  if (!call) {
+    // One retry with a blunter nudge. This is the admin's manual override, so
+    // a single miss shouldn't cost them the fight - the alternative is an
+    // error and no combat.
+    response = await client.messages.create({
+      ...handoffRequest,
+      messages: [
+        ...messages,
+        {
+          role: "user",
+          content:
+            "System: start_combat was not called. Call it now - the fight is already underway, and nothing else in this response is useful.",
+        },
+      ],
+    });
+    call = findCall(response);
+  }
   if (!call) throw new Error("Combat handoff produced no start_combat call");
   const { errors, value } = validateHandoff(call.input);
   if (errors.length > 0) throw new Error(`Combat handoff was incomplete: ${errors.join("; ")}`);
