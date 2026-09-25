@@ -187,7 +187,7 @@ Each phase ships and is useful on its own.
 
    *Fixes: effects not recorded on landing.* Laria only; Cyberpunk has no spells.
 3. **Enemy HP.** Includes:
-   - An HP max per tier and archetype (Cyberpunk) or per power level and class (Laria) in each game's stat tables. Values authored by the user; placeholders until then.
+   - An HP max per tier and archetype (Cyberpunk) or per power level and class (Laria) in each game's stat tables. Values authored by the user; placeholders until then. Laria's stat block already carries `hp` (a flat 20 for every enemy, 2026-09-25).
    - `apply_damage` with save-aware halving.
    - The condition word derived from the HP ratio; the status ladder retires.
 

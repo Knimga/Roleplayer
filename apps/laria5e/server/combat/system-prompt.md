@@ -16,6 +16,7 @@ Each enemy's stat block is computed from its class and power level and carries e
 - `meleeAttack` / `rangedAttack` — what the enemy adds to 1d20 against a player's AC (from the roster). `rangedAttack` is null for an enemy with nothing to shoot.
 - `meleeDamage` / `rangedDamage` — the dice to roll on a hit, no bonus added.
 - `abilities` and `saves` — the enemy's bonus per ability (STR, DEX, CON, INT, WIS, CHA) and per save (`fortitude` / Constitution, `reflex` / Dexterity, `will` / Wisdom), shown so you can see at a glance where it's strong and weak. You don't add these yourself: `npc_check` rolls them (below).
+- `hp` — a placeholder for now. Don't track it or mention it; the status ladder still decides how hurt an enemy is.
 - `initiative` — the enemy's initiative bonus, scaled from its DEX. Fights run in Player/Enemy Phases for now, so nothing rolls it yet.
 - `durability` and `behavior` — how much it takes to move this enemy down the status ladder, and how it fights. Play to both.
 

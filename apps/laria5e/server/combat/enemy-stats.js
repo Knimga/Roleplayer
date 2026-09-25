@@ -323,6 +323,10 @@ export function generateCoreStats(enemy) {
     class: cls,
     behavior: CLASSES[cls].behavior,
     proficiency: level.proficiency,
+    // PLACEHOLDER: a flat 20 for every enemy until the calculation exists.
+    // Nothing tracks it yet - the status ladder still decides when an enemy
+    // drops (specs/combat-state.md, Phase 3).
+    hp: 20,
     // What a player's attack roll must equal or beat.
     ac: BASE_AC + CLASSES[cls].acBonus + level.acBonus,
     // Added to 1d20 for turn order; scales with DEX tier: untrained +3,
