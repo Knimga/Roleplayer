@@ -16,5 +16,6 @@ export {
   ENEMY_END_STATES,
 } from "./tools.js";
 export { loadCombatDmCore, buildCombatContext, renderCombatOutcome } from "./context.js";
+export { APPLY_EFFECT_TOOL, TICK_EFFECTS_TOOL, runApplyEffect, runTickEffects, renderEffects } from "./effects.js";
 export { createCombatGenerator } from "./generator.js";
 export { createCombatsRouter, COMBAT_OUTCOME_SENDER } from "./router.js";

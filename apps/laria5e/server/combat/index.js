@@ -25,6 +25,10 @@ export const combatGame = {
   // both DMs share (see lookups/README.md).
   adHocLookups: [],
   buildRollMessage,
+  // Engine-tracked lasting effects (apply_effect / tick_effects - see
+  // packages/server-core/src/combat/effects.js): spells leave conditions and
+  // ongoing damage on enemies that the engine counts down, not the DM.
+  lastingEffects: true,
   // Optional engine hook: a cast during a fight (the engine's POST /:id/cast).
   // Same resolver as the narrative route - see ../spells.js.
   resolveCast,

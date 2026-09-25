@@ -55,10 +55,16 @@ export function withBaseEnemyFields({ required = [], properties = {} } = {}) {
 
 // Splits an enemy object into the engine's fields and the game's, so the
 // renderer can show the game fields as "what kind of enemy this is" without
-// knowing what they are. `stats` is the engine's too (it's what the game's
-// generateCoreStats and lookups write).
+// knowing what they are.
+//
+// Written by the engine during the fight, never by the game's schema:
+// `stats` (generateCoreStats + lookups), `condition` (update_enemy_status),
+// `effects` (apply_effect / tick_effects). Each renders on its own line, so
+// none of them belongs in the "Type:" line of game fields.
+const ENGINE_WRITTEN_KEYS = new Set(["stats", "condition", "effects"]);
+
 export function gameFieldsOf(enemy) {
-  return Object.fromEntries(Object.entries(enemy).filter(([k]) => !BASE_ENEMY_KEYS.has(k) && k !== "stats"));
+  return Object.fromEntries(Object.entries(enemy).filter(([k]) => !BASE_ENEMY_KEYS.has(k) && !ENGINE_WRITTEN_KEYS.has(k)));
 }
 
 // ---------------------------------------------------------------------------
@@ -130,10 +136,11 @@ export function validateHandoff(input) {
   const enemies = Array.isArray(input?.enemies) ? input.enemies : [];
   if (enemies.length === 0) errors.push("at least one enemy is required");
   const normalizedEnemies = enemies.map((e, i) => {
-    // `stats` is never accepted from the model - the game's generateCoreStats
-    // writes it at handoff. Everything else the game's schema declared passes
-    // through untouched.
-    const { stats: _stats, motive, notes, ...rest } = e && typeof e === "object" ? e : {};
+    // Engine-written fields are never accepted from the model - `stats` comes
+    // from the game's generateCoreStats at handoff, `condition` and `effects`
+    // from the combat DM's tools during the fight. Everything else the game's
+    // schema declared passes through untouched.
+    const { stats: _stats, condition: _condition, effects: _effects, motive, notes, ...rest } = e && typeof e === "object" ? e : {};
     const name = str(rest.name);
     const description = str(rest.description);
     if (!name) errors.push(`enemies[${i}].name is required`);
@@ -167,7 +174,7 @@ export const ENEMY_STATUS_LADDER = ["unharmed", "bruised", "injured", "critical"
 export const UPDATE_ENEMY_STATUS_TOOL = {
   name: "update_enemy_status",
   description:
-    "Your notepad for one enemy - the players never see it. Record its step on the status ladder and a one-line note on where it is and what shape it's in, and it will be in its stat block next message. Call it whenever a hit lands on an enemy, it drops, it moves somewhere that matters, or a lasting effect takes hold, ticks, or ends - before you narrate the beat. Each call replaces the whole note, so carry any effect still running (and its rounds left) into the new one.",
+    "Your notepad for one enemy - the players never see it. Record its step on the status ladder and a one-line note on where it is and what shape it's in, and it will be in its stat block next message. Call it whenever a hit lands on an enemy, it drops, or it moves somewhere that matters, before you narrate the beat. Each call replaces the whole note, so write it complete.",
   input_schema: {
     type: "object",
     required: ["enemy", "status"],
@@ -177,7 +184,7 @@ export const UPDATE_ENEMY_STATUS_TOOL = {
       note: {
         type: "string",
         description:
-          "One line: position, wounds, what it's doing, and any lasting effect with its rounds left. e.g. 'behind the dumpster, gun arm hit, reloading' or 'by the cart, scorched shoulder, burning 1d6 - 2 rounds left'.",
+          "One line: position, wounds, what it's doing. e.g. 'behind the dumpster, gun arm hit, reloading'.",
       },
     },
   },

@@ -65,6 +65,9 @@ export const combatGame = {
   adHocLookups,       // [{ name, description, input_schema, resolve(enemy, input) => { path, value } }]
   buildRollMessage,   // (requestBody) => { content } | { error } - the game's dice math + message format
   loadSystemPrompt,   // () => the game's combat mechanics prompt text
+  lastingEffects,     // optional boolean: offer the combat DM apply_effect + tick_effects (effects.js) -
+                      //   engine-tracked conditions and ongoing damage on enemies, stored as enemy.effects
+                      //   and rendered in the stat block. Laria: true. Cyberpunk: absent.
   resolveCast,        // optional: ({ conversation, username, body }) => { content, patch } | { status, error }
                       //   - a player's spell cast mid-fight (POST /api/combats/:id/cast); the engine applies
                       //   `patch` to the conversation row (e.g. the MP it costs) and posts `content`. Games

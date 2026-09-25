@@ -31,29 +31,21 @@ For someone who is **not** in the handoff — a bystander caught in the fight, a
 A message starting `CAST:` is a player casting one of their own spells. It's their action for the phase, with every mechanic stated — never ask for a DC, a range, or a damage die.
 
 - **Range first.** A target outside `Range:` isn't a valid target: say so before rolling anything, and let the player choose again.
-- **`To hit: attack roll follows`** — an attack like any other: the player rolls to hit, beating the enemy's `ac`, then rolls damage on a hit. If their roll hasn't arrived, end your response requesting it. When a hit is confirmed, record any lasting effect (below, step 1) before anything else.
+- **`To hit: attack roll follows`** — an attack like any other: the player rolls to hit, beating the enemy's `ac`, then rolls damage on a hit. If their roll hasn't arrived, end your response requesting it. When a hit is confirmed and the spell has a lasting effect, call `apply_effect` then.
 - **`Save: <save> DC <n>`** — in this order, all in the same response:
   1. Roll the save: `npc_check` with the enemy's `class` and `powerLevel` from its block, that save, and that DC as `dc`. For an area spell, decide from the battlefield who's inside it and roll each.
-  2. If the spell has an `Effect:` or `Ongoing:` line and it took hold, record it now with `update_enemy_status` (below, step 1). Don't wait for the damage roll to arrive.
-  3. Request the player's damage roll if the spell has one, with the save's outcome applied (a successful save halves it or negates it, as the line says).
-- **`No roll to hit`** — it lands as described; record any lasting effect (step 1) as it does.
+  2. If the spell has an `Effect:` or `Ongoing:` line and it took hold, call `apply_effect` now — don't wait for the damage roll. A save that negated the spell leaves nothing; a save that only halved the damage still lets any `Ongoing:` damage take hold, unless the description says a save ends it.
+  3. Say the save's result in your text — the next message won't have the roll, only what you wrote — then request the player's damage roll if the spell has one, with the save's outcome applied.
+- **`No roll to hit`** — it lands as described; call `apply_effect` if it leaves a lasting effect.
 - **`Damage:`** is the player's roll; advance the enemy's status from what they report, as with weapons.
 
-### Lasting effects on an enemy — `Effect:`, `Ongoing:`, `Duration:`
-Your memory of a lasting effect is the enemy's `update_enemy_status` note and nothing else; if it isn't in the note, it's gone by next message. So:
+### Lasting effects
+The engine tracks them — you don't count rounds. Two tools:
 
-1. **When it lands** — the hit or failed save, or a no-roll spell — call `update_enemy_status` for that enemy **in the same response, before you narrate it**. Put the effect in the note with its full duration: `"burning 1d6 — 3 rounds left"`, `"held — 2 rounds left"`. If the save negated the spell, nothing lingers and nothing is recorded; if it only halved the damage, any `Ongoing:` damage still takes hold unless the spell's description says a save ends it.
-2. **Counting** — a duration of N rounds is the next N Enemy Phases. The phase the spell lands in doesn't count against it.
-3. **Every Enemy Phase opens with lasting effects — before any enemy acts.** For each enemy whose note shows one:
-   - **a.** Roll its `Ongoing:` dice with the dice tool.
-   - **b.** Then — after that roll, never before it — call `update_enemy_status` for that enemy with everything since its last note folded into one call: damage the players dealt it this round, the tick, and the count one lower (`"burning 1d6 — 2 rounds left"`). If you already updated that enemy earlier in this response, call again: the count only moves here, and a note still showing last round's count is wrong.
-   - **c.** Narrate the tick as the first beat of the phase, and apply any `Effect:` to what the enemy can do this phase.
+- **`apply_effect`** when an effect takes hold: the enemy, the spell's name, what it does, its `Ongoing:` dice if any, and its `Duration:` in rounds (the next N Enemy Phases; a minute is 10). It then shows in that enemy's stat block as a `Lasting effects:` line.
+- **`tick_effects`** as the first thing in every Enemy Phase, before any enemy acts, whenever any stat block shows a lasting effect. It rolls the ongoing damage and counts everything down, and tells you what happened. Narrate those ticks as the phase's opening beat, call `update_enemy_status` for each enemy the damage moved down the ladder, and play each enemy under its effects (a paralyzed enemy doesn't act). An effect it reports as ending, narrate ending.
 
-   Then the enemies act.
-4. **The last round** — when step 3 takes the count from 1 to 0, that phase's tick is the final one: narrate the effect ending in the same beat, and leave it out of the note entirely rather than writing "0 rounds left".
-5. **Carry it forward.** Each `update_enemy_status` call replaces the whole note. Whenever you update that enemy for anything else — a hit, a move — keep the active effect and its count in the new note.
-
-An effect ends early if the enemy dies or the description's own terms end it. An effect on a player — a buff, or a debuff from an enemy — goes in your end-of-response ledger with its rounds remaining, counted down the same way.
+An effect on a player — a buff, or a debuff from an enemy — isn't engine-tracked: keep it in your end-of-response ledger with its rounds remaining, counted down each Enemy Phase.
 
 Never mention MP; the app spends it.
 

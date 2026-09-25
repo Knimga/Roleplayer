@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { gameFieldsOf } from "./tools.js";
+import { renderEffects } from "./effects.js";
 
 // Everything the combat DM reads that isn't the transcript: the shared
 // combat prompt, the handoff rendered as a cached prompt tier, and the
@@ -33,6 +34,10 @@ function renderEnemy(enemy) {
   if (enemy.condition?.status) {
     lines.push(`Now: ${enemy.condition.status}${enemy.condition.note ? ` — ${enemy.condition.note}` : ""}`);
   }
+  // Engine-tracked lasting effects (effects.js) - also current, so right
+  // after the notepad line.
+  const effects = renderEffects(enemy.effects);
+  if (effects) lines.push(`Lasting effects: ${effects}`);
   if (enemy.motive) lines.push(`Motive: ${enemy.motive}`);
   if (enemy.notes) lines.push(`Notes: ${enemy.notes}`);
   // The game's own fields (tier, creature type, whatever its schema asked

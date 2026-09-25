@@ -1,5 +1,6 @@
 import { END_COMBAT_TOOL, UPDATE_ENEMY_STATUS_TOOL, ENEMY_STATUS_LADDER, validateOutcome } from "./tools.js";
 import { loadCombatDmCore, buildCombatContext } from "./context.js";
+import { APPLY_EFFECT_TOOL, TICK_EFFECTS_TOOL, runApplyEffect, runTickEffects } from "./effects.js";
 
 // The combat DM: one call per combat turn, plus the forced end for the
 // admin's manual override. Game-agnostic - everything about a particular
@@ -81,6 +82,8 @@ function extractText(response) {
 export function createCombatGenerator({ client, model, getMcpTools, callMcpTool, game }) {
   const adHocLookups = game.adHocLookups ?? [];
   const lookupsByName = new Map(adHocLookups.map((l) => [l.name, l]));
+  // Opt-in per game (effects.js): engine-tracked lasting effects on enemies.
+  const effectTools = game.lastingEffects === true ? [APPLY_EFFECT_TOOL, TICK_EFFECTS_TOOL] : [];
 
   // Three tiers (§5.3.3): shared procedure + this game's mechanics (cached,
   // changes only when a prompt file is edited); the handoff (cached, changes
@@ -96,7 +99,7 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
 
   async function buildTools() {
     const mcpTools = await getMcpTools();
-    const tools = [...mcpTools, ...adHocLookups.map(lookupToolDef), UPDATE_ENEMY_STATUS_TOOL, END_COMBAT_TOOL];
+    const tools = [...mcpTools, ...adHocLookups.map(lookupToolDef), UPDATE_ENEMY_STATUS_TOOL, ...effectTools, END_COMBAT_TOOL];
     tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: CACHE_CONTROL };
     return tools;
   }
@@ -216,10 +219,16 @@ export function createCombatGenerator({ client, model, getMcpTools, callMcpTool,
       }
 
       messages.push({ role: "assistant", content: response.content });
-      if (onDiceRoll && toolUses.some((t) => t.name === "roll_dice")) onDiceRoll();
+      if (onDiceRoll && toolUses.some((t) => t.name === "roll_dice" || t.name === "tick_effects")) onDiceRoll();
 
       const toolResults = await Promise.all(
         toolUses.map(async (toolUse) => {
+          if (effectTools.length > 0 && (toolUse.name === "apply_effect" || toolUse.name === "tick_effects")) {
+            const { result, updates } =
+              toolUse.name === "apply_effect" ? runApplyEffect(toolUse.input, liveContext, findEnemyIndex) : runTickEffects(liveContext);
+            enemyUpdates.push(...updates);
+            return { type: "tool_result", tool_use_id: toolUse.id, content: result.content, is_error: result.isError };
+          }
           if (toolUse.name === "update_enemy_status") {
             const { result, update } = runStatusUpdate(toolUse.input, liveContext);
             if (update) enemyUpdates.push(update);
