@@ -16,6 +16,7 @@ import {
 import { getActiveMilestone, applySituationUpdate } from "@roleplayer/server-core/blueprint.js";
 import { notifyOtherPlayer, formatPlayerMessage, formatDmReply, formatNewChapter } from "../lib/discordNotify.js";
 import { combatGame } from "../combat/index.js";
+import { validateSpellList, resolveCast } from "../spells.js";
 
 const router = Router();
 const MAX_CONVERSATIONS = 50;
@@ -251,6 +252,7 @@ router.get("/", async (req, res) => {
       characterHp: conversations.characterHp,
       characterAc: conversations.characterAc,
       characterMp: conversations.characterMp,
+      characterSpells: conversations.characterSpells,
       characterReady: conversations.characterReady,
       createdAt: conversations.createdAt,
       lastMessageAt: conversations.lastMessageAt,
@@ -735,6 +737,38 @@ router.patch("/:id/mp", async (req, res) => {
   res.json({ characterMp });
 });
 
+// The caller's own spell list, replaced whole (specs/laria5e/character-spells.md).
+// Player-only bookkeeping like MP: no roster entry, so no character-updated
+// publish - the DM sees a spell only when it's cast.
+router.patch("/:id/spells", async (req, res) => {
+  const [conversation] = await db
+    .select({
+      characterSpells: conversations.characterSpells,
+      storyId: conversations.storyId,
+      createdAt: conversations.createdAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, req.params.id));
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Spells are only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+
+  const { spells, error } = validateSpellList(req.body?.spells);
+  if (error) {
+    return res.status(400).json({ error });
+  }
+
+  const characterSpells = { ...(conversation.characterSpells ?? {}), [req.user.username]: spells };
+  await db.update(conversations).set({ characterSpells }).where(eq(conversations.id, req.params.id));
+
+  res.json({ characterSpells });
+});
+
 router.patch("/:id/ready", async (req, res) => {
   const { ready } = req.body ?? {};
   if (typeof ready !== "boolean") {
@@ -860,6 +894,7 @@ router.post("/:id/new-chapter", async (req, res) => {
         characterHp: conversation.characterHp,
         characterAc: conversation.characterAc,
         characterMp: conversation.characterMp,
+        characterSpells: conversation.characterSpells,
         // Deliberately not carried over from the outgoing chapter, unlike
         // every other field here — "ready" is a signal about the round in
         // progress, and a new chapter starts a fresh scene with none yet.
@@ -940,6 +975,45 @@ router.post("/:id/new-chapter", async (req, res) => {
   } finally {
     pendingReplies.delete(conversationId);
   }
+});
+
+// Casting outside a fight: posts the CAST: message to the chapter and pays
+// the MP. During a fight the client uses the combat engine's /cast instead,
+// and this returns 409, same as /roll.
+router.post("/:id/cast", async (req, res) => {
+  const [conversation] = await db
+    .select({
+      characterNames: conversations.characterNames,
+      characterSpells: conversations.characterSpells,
+      characterMp: conversations.characterMp,
+      storyId: conversations.storyId,
+      createdAt: conversations.createdAt,
+      name: conversations.name,
+      storyName: stories.name,
+    })
+    .from(conversations)
+    .leftJoin(stories, eq(conversations.storyId, stories.id))
+    .where(eq(conversations.id, req.params.id));
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Spells are only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+  if (!(await assertNoActiveCombat(req.params.id, res))) return;
+
+  const result = resolveCast({ conversation, username: req.user.username, body: req.body });
+  if (result.error) {
+    return res.status(result.status).json({ error: result.error });
+  }
+
+  await db.update(conversations).set(result.patch).where(eq(conversations.id, req.params.id));
+  const sender = resolveSender(conversation, req.user.username);
+  await insertUserMessage(req.params.id, sender, req.user.username, result.content, conversation.storyName ?? conversation.name);
+
+  res.status(202).json({ characterMp: result.patch.characterMp });
 });
 
 router.post("/:id/roll", async (req, res) => {

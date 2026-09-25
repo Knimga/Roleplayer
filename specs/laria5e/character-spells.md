@@ -1,7 +1,7 @@
 # Spec: Character Spells (Laria)
 
 ## Status
-Planned (2026-09-17). Design agreed; nothing implemented. The final UI (a spell editor and a Cast control in the right panel) will come from a mockup in `ui-handoff/` — this spec covers everything the UI will plug into: data, routes, the cast message, and how both DMs resolve a cast.
+Backend and DM behavior implemented (2026-09-25); **UI not yet built**. Planned 2026-09-17. The spell editor and Cast control in the right panel will come from a mockup in `ui-handoff/` — everything they plug into (data, routes, client API functions, the cast message, both DMs' guidance) is in place. The two DM-behavior requirements are prompt-level: written and read through, not yet observed in live play.
 
 ## Summary
 Laria players author their own spells and cast them in play. A spell has a name, a type, a description in the player's words, how it resolves (nothing / the player's attack roll / an enemy save at a DC), optional damage dice, an optional non-damage effect with a duration, and an MP cost. Casting posts a fixed-format `CAST:` message into whichever transcript is live — the main chapter, or the combat transcript during a fight, routed exactly like dice rolls — and deducts the cost from the caster's MP ([MP bar](../../apps/laria5e/client/src/MpTracker.jsx)). The DM never sees the spell list; everything it needs arrives in the cast message.
@@ -9,13 +9,13 @@ Laria players author their own spells and cast them in play. A spell has a name,
 Cyberpunk is untouched: the shared combat engine gains one optional game-module hook that Cyberpunk's module doesn't implement.
 
 ## Requirements
-- [ ] Each player can keep a list of spells on their character (per Story; carried into each new chapter like gear and MP), every field written by the player — nothing seeded or generated
-- [ ] A spell records: name, type (buff / debuff / single-target / aoe / utility), description, range, resolution (none / attack / save), the save and DC when it's a save, whether a successful save halves or negates damage, damage dice, damage over time (dice applied each round for the duration), a non-damage effect, a duration, an MP cost
-- [ ] Casting posts a `CAST:` message as the player (sender = character name) into the main chapter, or the combat transcript when a fight is active
-- [ ] Casting deducts the spell's MP cost from the caster's current MP; a cast the player can't afford is refused with the shortfall stated
-- [ ] The DM's roster carries nothing about spells; MP is never mentioned by the DM
-- [ ] The narrative DM resolves a cast from the message alone — never asks for a DC, rolls enemy saves with `npc_check` at the stated DC, waits for the player's attack roll when the spell says so, honors effect and duration as written
-- [ ] The combat DM does the same, and tracks durations in rounds: enemy-side effects in `update_enemy_status` notes, player-side effects in the end-of-response ledger
+- [x] Each player can keep a list of spells on their character (per Story; carried into each new chapter like gear and MP), every field written by the player — nothing seeded or generated
+- [x] A spell records: name, type (buff / debuff / single-target / aoe / utility), description, range, resolution (none / attack / save), the save and DC when it's a save, whether a successful save halves or negates damage, damage dice, damage over time (dice applied each round for the duration), a non-damage effect, a duration, an MP cost
+- [x] Casting posts a `CAST:` message as the player (sender = character name) into the main chapter, or the combat transcript when a fight is active
+- [x] Casting deducts the spell's MP cost from the caster's current MP; a cast the player can't afford is refused with the shortfall stated
+- [x] The DM's roster carries nothing about spells; MP is never mentioned by the DM
+- [x] The narrative DM resolves a cast from the message alone — never asks for a DC, rolls enemy saves with `npc_check` at the stated DC, waits for the player's attack roll when the spell says so, honors effect and duration as written
+- [x] The combat DM does the same, and tracks durations in rounds: enemy-side effects in `update_enemy_status` notes, player-side effects in the end-of-response ledger
 
 ## Data model
 New `characterSpells` jsonb column on Laria's `conversations` (schema + migration `0023_character_spells`), shaped `{ "<username>": Spell[] }`, carried over at new-chapter creation alongside `characterGear` / `characterMp`. Not seeded — `null` reads as `[]`.

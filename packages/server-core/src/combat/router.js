@@ -230,6 +230,27 @@ export function createCombatsRouter({
     res.status(202).json({ status: "sent" });
   });
 
+  // A spell cast mid-fight. Games opt in by defining game.resolveCast
+  // ({ conversation, username, body } -> { content, patch } | { status,
+  // error }); the engine only applies the conversation-row patch (the MP
+  // it costs) and posts the message, exactly like a roll.
+  router.post("/:id/cast", async (req, res) => {
+    if (typeof game.resolveCast !== "function") {
+      return res.status(404).json({ error: "This game has no spells" });
+    }
+    const row = await loadActiveCombat(req.params.id, res);
+    if (!row) return;
+
+    const result = game.resolveCast({ conversation: row.conversation, username: req.user.username, body: req.body });
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    await db.update(conversations).set(result.patch).where(eq(conversations.id, row.conversation.id));
+    await insertCombatUserMessage(row, req.user, result.content);
+    res.status(202).json(result.patch);
+  });
+
   router.post("/:id/respond", async (req, res) => {
     const row = await loadActiveCombat(req.params.id, res);
     if (!row) return;

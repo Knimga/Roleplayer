@@ -43,7 +43,7 @@ The same tool serves in combat: an enemy in a fight has its class and power leve
 
 The DC is set by whatever is causing the effect (a spell's save DC, a trap's fixed DC, a poison's listed DC) — not chosen freely at time of resolution. The roll must beat it; a tie fails. If no DC is defined for a homebrewed hazard, default to the Medium band (15) from `skill-check-resolution.md` unless narrative stakes justify Hard (20) or higher.
 
-**A player's spell or effect against an NPC**: the DC is that player's spell save DC, which you don't have. Use the one they state; if they didn't state it, ask for it — "**What's your spell save DC?**" — and resolve the save when it arrives. Never guess it.
+**A player's spell or effect against an NPC**: if it arrived as a `CAST:` message, its `Save:` line names the save and the DC — use them. For a spell a player only describes in prose, the DC is their spell save DC, which you don't have: use the one they state; if they didn't state it, ask for it — "**What's your spell save DC?**" — and resolve the save when it arrives. Never guess it.
 
 ## Death Saving Throws (special case)
 

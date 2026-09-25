@@ -65,6 +65,10 @@ export const combatGame = {
   adHocLookups,       // [{ name, description, input_schema, resolve(enemy, input) => { path, value } }]
   buildRollMessage,   // (requestBody) => { content } | { error } - the game's dice math + message format
   loadSystemPrompt,   // () => the game's combat mechanics prompt text
+  resolveCast,        // optional: ({ conversation, username, body }) => { content, patch } | { status, error }
+                      //   - a player's spell cast mid-fight (POST /api/combats/:id/cast); the engine applies
+                      //   `patch` to the conversation row (e.g. the MP it costs) and posts `content`. Games
+                      //   without it (Cyberpunk) answer that route with 404. Laria: ../../../apps/laria5e/server/spells.js
 };
 ```
 

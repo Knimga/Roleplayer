@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { enemySchema } from "./enemy-schema.js";
 import { generateCoreStats } from "./enemy-stats.js";
 import { buildRollMessage } from "./roll-message.js";
+import { resolveCast } from "../spells.js";
 
 // Laria's combat game module - everything the shared combat engine
 // (packages/server-core/src/combat/, see its README) needs to know about
@@ -24,5 +25,8 @@ export const combatGame = {
   // both DMs share (see lookups/README.md).
   adHocLookups: [],
   buildRollMessage,
+  // Optional engine hook: a cast during a fight (the engine's POST /:id/cast).
+  // Same resolver as the narrative route - see ../spells.js.
+  resolveCast,
   loadSystemPrompt: () => readFileSync(SYSTEM_PROMPT_PATH, "utf-8").trim(),
 };

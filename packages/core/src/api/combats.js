@@ -32,6 +32,15 @@ export async function submitCombatRoll(combatId, payload) {
   await post(`${API_BASE}/${combatId}/roll`, payload, "Failed to roll");
 }
 
+// A spell cast mid-fight - posts the CAST: message to the combat transcript
+// and deducts the MP. Only games whose combat module defines resolveCast
+// support it (Laria); the server returns 404 otherwise. Resolves to
+// { characterMp }.
+export async function castCombatSpell(combatId, spellId) {
+  const res = await post(`${API_BASE}/${combatId}/cast`, { spellId }, "Failed to cast");
+  return res.json();
+}
+
 // Mirrors editMessage/deleteMessage in api/conversations.js, scoped to one
 // combat's own transcript - same lock rules (own message, until the combat
 // DM has replied after it; admin can always delete the single most recent
