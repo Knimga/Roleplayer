@@ -32,6 +32,8 @@ export default function RightPanel({
   onMpSaved,
   myAc,
   onAcSaved,
+  myInitiative,
+  onInitiativeSaved,
   mySaves,
   onSavesSaved,
   mySpells,
@@ -77,7 +79,15 @@ export default function RightPanel({
         <div className="right-panel__vitals">
           <HpTracker conversationId={conversationId} hp={myHp} onSaved={onHpSaved} />
           <MpTracker conversationId={conversationId} mp={myMp} onSaved={onMpSaved} />
-          <DefenseStats conversationId={conversationId} ac={myAc} saves={mySaves} onAcSaved={onAcSaved} onSavesSaved={onSavesSaved} />
+          <DefenseStats
+            conversationId={conversationId}
+            ac={myAc}
+            initiative={myInitiative}
+            saves={mySaves}
+            onAcSaved={onAcSaved}
+            onInitiativeSaved={onInitiativeSaved}
+            onSavesSaved={onSavesSaved}
+          />
         </div>
         <hr />
         <div className="character-actions-row">

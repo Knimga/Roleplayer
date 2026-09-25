@@ -25,6 +25,7 @@ export const conversations = pgTable("conversations", {
   characterGear: jsonb("character_gear"), // { "<username>": "<weapons & gear, <=500 chars>" }, mutable
   characterHp: jsonb("character_hp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation
   characterAc: jsonb("character_ac"), // { "<username>": <int> }, mutable; seeded to 16 at Story creation, edited in place
+  characterInitiative: jsonb("character_initiative"), // { "<username>": <int> } - the character's initiative bonus; mutable; seeded 0 at Story creation. Stored now for the combat-state feature's turn order (specs/combat-state.md, Phase 5); not in any roster yet
   characterSaves: jsonb("character_saves"), // { "<username>": { "fortitude": <int>, "reflex": <int>, "will": <int> } }, mutable; seeded 0/0/0 at Story creation; in the combat DM's roster alongside AC
   characterSpells: jsonb("character_spells"), // { "<username>": Spell[] }, player-authored (specs/laria5e/character-spells.md); validated by spells.js; not seeded, null reads as []; never in the roster - the DM sees a spell only when it's cast
   characterMp: jsonb("character_mp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation; never sent to the LLM

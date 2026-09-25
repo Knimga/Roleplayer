@@ -55,6 +55,19 @@ export async function castSpell(conversationId, spellId) {
   return res.json();
 }
 
+// Resolves to { characterInitiative }.
+export async function saveCharacterInitiative(conversationId, initiative) {
+  const res = await fetch(`${API_BASE}/${conversationId}/initiative`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ initiative }),
+  });
+  const error = await parseErrorOr(res, "Failed to save initiative");
+  if (error) throw new Error(error);
+  return res.json();
+}
+
 // Partial body: any of { fortitude, reflex, will }. Resolves to { characterSaves }.
 export async function saveCharacterSaves(conversationId, saves) {
   const res = await fetch(`${API_BASE}/${conversationId}/saves`, {

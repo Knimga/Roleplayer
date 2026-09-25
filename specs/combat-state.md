@@ -194,7 +194,7 @@ Each phase ships and is useful on its own.
    Both games.
 4. **Tracker UI.** The sticky strip, the `combat-state` SSE event, and the popover. A minimal version (round, phase, effects) could ship right after Phase 1 if wanted.
 5. **Initiative and turn order.** Includes:
-   - An Initiative option in both dice rollers; enemies' initiative rolled by the engine from their stats (game hook).
+   - An Initiative option in both dice rollers; enemies' initiative rolled by the engine from their stats (game hook). Laria players' initiative bonus is already stored (`conversations.characterInitiative`, the "Ini" box in the right panel, 2026-09-25), so the engine could also roll it for them.
    - `turnOrder`, `end_turn`, and per-turn effect ticks.
    - The `combat-dm-core.md` rework.
 6. **Later.** The engine applying enemy damage to player HP. That needs a game hook, since Cyberpunk subtracts SP and ablates armor, and it changes a player-owned value. Also: engine-resolved enemy attacks against player AC or DV; player stat blocks as data; enemy armor (Cyberpunk SP).

@@ -251,6 +251,7 @@ router.get("/", async (req, res) => {
       characterGear: conversations.characterGear,
       characterHp: conversations.characterHp,
       characterAc: conversations.characterAc,
+      characterInitiative: conversations.characterInitiative,
       characterMp: conversations.characterMp,
       characterSpells: conversations.characterSpells,
       characterSaves: conversations.characterSaves,
@@ -337,6 +338,7 @@ router.post("/story", async (req, res) => {
 
   const characterHp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
   const characterAc = Object.fromEntries(users.map((u) => [u.username, DEFAULT_AC]));
+  const characterInitiative = Object.fromEntries(users.map((u) => [u.username, 0]));
   const characterMp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
   const characterSaves = Object.fromEntries(users.map((u) => [u.username, { fortitude: 0, reflex: 0, will: 0 }]));
   const characterReady = Object.fromEntries(users.map((u) => [u.username, false]));
@@ -350,6 +352,7 @@ router.post("/story", async (req, res) => {
       characterDetails: details,
       characterHp,
       characterAc,
+      characterInitiative,
       characterMp,
       characterSaves,
       characterReady,
@@ -694,6 +697,38 @@ router.patch("/:id/ac", async (req, res) => {
   res.json({ characterAc });
 });
 
+// The character's initiative bonus. Stored for the combat-state feature's
+// turn order (specs/combat-state.md, Phase 5); nothing model-facing reads it
+// yet, so no character-updated publish.
+router.patch("/:id/initiative", async (req, res) => {
+  const value = Number(req.body?.initiative);
+  if (!Number.isInteger(value) || value < 0 || value > MAX_AC) {
+    return res.status(400).json({ error: `Initiative must be a whole number from 0 to ${MAX_AC}` });
+  }
+
+  const [conversation] = await db
+    .select({
+      characterInitiative: conversations.characterInitiative,
+      storyId: conversations.storyId,
+      createdAt: conversations.createdAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, req.params.id));
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Initiative is only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+
+  const characterInitiative = { ...(conversation.characterInitiative ?? {}), [req.user.username]: value };
+  await db.update(conversations).set({ characterInitiative }).where(eq(conversations.id, req.params.id));
+
+  res.json({ characterInitiative });
+});
+
 // Fortitude / Reflex / Will bonuses - Laria's three saves. Partial body like
 // HP/MP: any of { fortitude, reflex, will }, merged onto the stored values.
 // The combat DM's roster carries them next to AC, so a change publishes
@@ -943,6 +978,7 @@ router.post("/:id/new-chapter", async (req, res) => {
         characterGear: conversation.characterGear,
         characterHp: conversation.characterHp,
         characterAc: conversation.characterAc,
+        characterInitiative: conversation.characterInitiative,
         characterMp: conversation.characterMp,
         characterSpells: conversation.characterSpells,
         characterSaves: conversation.characterSaves,

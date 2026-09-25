@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { saveCharacterAc, saveCharacterSaves } from "./api/conversations";
+import { saveCharacterAc, saveCharacterInitiative, saveCharacterSaves } from "./api/conversations";
 
 const DEFAULT_AC = 16;
 const SAVES = [
@@ -51,9 +51,10 @@ function StatBox({ conversationId, label, value, onCommit }) {
   );
 }
 
-// AC, then a divider, then the three saves (Laria's classic Fortitude /
-// Reflex / Will). All four sit in the combat DM's roster.
-export default function DefenseStats({ conversationId, ac, saves, onAcSaved, onSavesSaved }) {
+// AC and initiative, then a divider, then the three saves (Laria's classic
+// Fortitude / Reflex / Will). AC and the saves sit in the combat DM's
+// roster; initiative is stored for the combat-state feature's turn order.
+export default function DefenseStats({ conversationId, ac, initiative, saves, onAcSaved, onInitiativeSaved, onSavesSaved }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -80,6 +81,12 @@ export default function DefenseStats({ conversationId, ac, saves, onAcSaved, onS
           label="AC"
           value={ac ?? DEFAULT_AC}
           onCommit={(v) => run(() => saveCharacterAc(conversationId, v), onAcSaved)}
+        />
+        <StatBox
+          conversationId={conversationId}
+          label="Ini"
+          value={initiative ?? 0}
+          onCommit={(v) => run(() => saveCharacterInitiative(conversationId, v), onInitiativeSaved)}
         />
         <span className="defense-stats__divider" aria-hidden="true" />
         {SAVES.map(([key, label]) => (
