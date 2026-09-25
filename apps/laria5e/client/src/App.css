@@ -1477,7 +1477,7 @@
 #character-class-level {
   display: block;
   text-align: center;
-  margin: -12px 0 0;
+  margin: 2px 0 0;
   font-size: 12px;
   font-style: italic;
   color: var(--text-dim);
