@@ -325,6 +325,9 @@ export function generateCoreStats(enemy) {
     proficiency: level.proficiency,
     // What a player's attack roll must equal or beat.
     ac: BASE_AC + CLASSES[cls].acBonus + level.acBonus,
+    // Added to 1d20 for turn order; scales with DEX tier: untrained +3,
+    // trained +6, expert +9, master +12.
+    initiative: (abilityBonus(ref, "DEX") / 5 + 1) * 3,
     // What the enemy rolls with (+ 1d20) against a player's AC. Damage is
     // rolled on a hit with the weapon used; the ability bonus is not added
     // to damage until the tables say otherwise.
