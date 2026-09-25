@@ -6,7 +6,7 @@ Planned (2026-09-25). Nothing implemented. Builds on [combat-encounters.md](comb
 ## Summary
 Move combat bookkeeping out of the combat DM's memory and into structured state the engine owns: who is fighting, the initiative order and whose turn it is, everyone's HP and lasting effects, and which actions are declared, resolved, or waiting on a roll. The engine renders that state into the DM's prompt every turn and advances it deterministically: it rolls enemy initiative, ticks ongoing damage, counts durations, resolves spell saves, compares rolls with their targets, and applies damage. The model keeps the judgment calls (targets, tactics, plausibility, difficulty, narration). Code keeps the books.
 
-Fights run in **initiative order**, one combatant at a time, replacing today's Player Phase / Enemy Phase. A player ends their own turn with an **End turn** button, which prompts the DM automatically; the DM then runs every enemy turn up to the next player's, stopping only for rolls a player owes.
+Fights run in **initiative order**, one combatant at a time, replacing today's Player Phase / Enemy Phase. A player ends their own turn with an **End turn** button, which prompts the DM automatically; the DM then runs every enemy turn up to the next player's, stopping only for rolls a player owes. The admin can end the other player's turn for them. Everyone's initiative is rolled by the engine when the fight starts.
 
 A compact tracker pinned to the top of the combat block in the chat shows the round and every combatant in initiative order: the party with HP bars, enemies with a condition word, effect icons, and their position on hover.
 
@@ -39,8 +39,8 @@ Initiative order replaces phases because phases leave "when is a player done?" t
 ```
 state {
   round:        int, starts at 1
-  turnOrder:    combatantId[]                  // highest initiative first; [] until initiative is in
-  activeIndex:  int | null                     // null while initiative is being rolled
+  turnOrder:    combatantId[]                  // highest initiative first, set when the fight starts
+  activeIndex:  int
   combatants: {
     [id]: {
       id, kind: "player" | "enemy",
@@ -69,7 +69,7 @@ Entry  {
   spell?,                                      // casts: the full spell, copied at cast time
   targets?: combatantId[],
   status: "pending" | "awaiting" | "resolved",
-  awaiting?: { from: combatantId, roll: "initiative" | "attack" | "damage" | "check" | "save", target?: int }[],
+  awaiting?: { from: combatantId, roll: "attack" | "damage" | "check" | "save", target?: int }[],
   outcome?:   string,                          // "save failed (9 vs 13); burning 3 rounds; 7 fire damage"
   mechanics?: object                           // engine-computed results: per-target outcomes, damage applied
 }
@@ -81,7 +81,7 @@ Enemies move out of `context.enemies[].condition` / `.effects` into `state.comba
 
 **Position is public, intent is private.** `position` is written for the players: only what their characters can see, and it appears as the tooltip on the enemy's chip. `intent` is the DM's own notepad (a plan, a breaking point, a bluff) and never leaves the prompt. Splitting them lets the tracker show position without leaking hidden information, and keeps the "reveal only what the fiction earns" rule enforceable: anything in `position` is fair game for the table by definition.
 
-**Backfill:** when a combat is loaded with `state` null (any fight active at deploy time), the engine builds `state` from `context`: round 1, combatants from the players and `context.enemies` carrying any existing `condition` / `effects` across, today's `update_enemy_status` note as `intent` (it was private), enemies' initiative rolled, and the players' initiative marked awaited. The DM's next response asks for it. No data migration beyond the column.
+**Backfill:** when a combat is loaded with `state` null (any fight active at deploy time), the engine builds `state` from `context`: round 1, combatants from the players and `context.enemies` carrying any existing `condition` / `effects` across, today's `update_enemy_status` note as `intent` (it was private), everyone's initiative rolled, and the turn given to whichever player spoke last, with the order continuing from them. No data migration beyond the column.
 
 ### `combat_messages.state_before` (new jsonb column)
 The state as it was immediately before a DM message was generated, stored on that assistant row. See Rollback.
@@ -101,7 +101,9 @@ This matches what `combat-dm-core.md` already asks of the narration ("the one wi
 
 ## Initiative and turns
 
-**Rolling.** When a fight opens, the engine rolls every enemy's initiative from its stat block's `initiative` bonus (Laria: `1d20 + initiative`; Cyberpunk: `1d10 + initiative`, through the game's dice rules) and creates an `awaiting` initiative entry for each player. The DM's opening narration sets the scene and ends by asking both players for initiative. Both dice rollers gain an **Initiative** roll type (Laria uses the stored "Ini" bonus; Cyberpunk players enter their REF-based bonus as with any roll), and the engine matches each player's Initiative roll to their entry. When every player's is in, the engine sorts `turnOrder` and the first turn begins.
+**Rolling.** When the fight starts (the handoff is accepted), the engine rolls everyone's initiative in one go and sorts `turnOrder`, so the order is known before the DM writes a word. Enemies roll on their stat block's `initiative` bonus; players on their stored bonus: Laria's "Ini" box (`characterInitiative`, already built) and Cyberpunk's new Initiative row (below). Laria rolls `1d20 + bonus`, Cyberpunk `1d10 + bonus` through its dice rules (exploding 10s, fumbling 1s). The rolls are shown in the tracker and rendered in the prompt; the DM's opening narration sets the scene and runs straight into the first turn: if an enemy is first, it plays the enemies up to the first player; if a player is first, it ends on their spotlight. Players don't roll initiative themselves, which makes this the one roll the engine makes for them: it's bookkeeping with no decision in it, and it keeps the opening to one DM response.
+
+**Cyberpunk's Initiative row.** A small, minimal row under SP in Cyberpunk's right panel for entering and saving the character's initiative bonus: a `characterInitiative` column on Cyberpunk's `conversations` (`{ "<username>": int }`, seeded 0, carried into new chapters) and a `PATCH /:id/initiative` route, mirroring Laria's. Players enter their own number (REF plus anything that adds to it); the app doesn't compute it.
 
 **Ties:** player before enemy; between two players or two enemies, the higher bonus, then a coin flip the engine makes once and stores.
 
@@ -110,6 +112,8 @@ This matches what `combat-dm-core.md` already asks of the narration ("the one wi
 **The opening action.** The action the players declared in the handoff is resolved on that player's first turn, not before initiative.
 
 **A player's turn.** The tracker highlights them and their composer shows **End turn**. They declare an action, the DM resolves it and asks for rolls, they roll, the DM narrates, and so on, prompting the DM with "Ask DM" as today. When they're done, including any banter after their actions are spent, they click **End turn**. That posts a user-role marker message in the fight's transcript, `— BARRET ENDS TURN —` (sender: the character), and prompts the DM automatically. Only the active player sees the button. The ready toggle is hidden during combat, since turns replace it.
+
+**The admin can end the other player's turn** (someone stepped away, or forgot to click). While it's the other player's turn, the admin sees **End [name]'s Turn** in the same place their own End turn button appears. It posts the same marker, `— BARRET ENDS TURN —`, under the admin's account and prompts the DM. The admin's own End turn works as for any player. Ending a turn isn't admin-only for the active player; ending someone else's is.
 
 **The other player, off-turn,** can still post: banter, questions, OOC. A declared action is held for their turn, exactly as today's out-of-phase rule.
 
@@ -144,7 +148,6 @@ Every comparison uses the game's beat-the-number rule (a tie fails). The DM alwa
 A list of what's been declared this round, and whether it's resolved.
 
 **How entries are created:**
-- **Initiative, by the engine**, when the fight opens (one awaiting entry per player).
 - **Casts, exactly and for free.** `POST /cast` during a fight creates a `pending` entry with the full spell copied in and `messageId` set (Phase 2). The route knows everything at intake.
 - **Roll requests, by the DM.** `request_roll` creates an entry `awaiting` a specific roll from a specific player, with its target number when there is one.
 - **Free-text actions at resolution, not intake.** "I shove the archer off the cart" is only an action once the DM interprets it, so the DM records it when it settles it: `resolve_action` creates the entry already `resolved`. The ledger's job is marking what's done, and that happens at resolution. A structured action composer in the UI (the player picks Attack / Cast / Move / Other and a target) is the upgrade path if free text proves the weak link; it is not in this spec.
@@ -162,7 +165,7 @@ The combat DM's tools after all phases. Each phase lists which it adds.
 
 | Tool | Phase | Does | Replaces |
 |---|---|---|---|
-| `end_turn {}` | 1 | Ends the active enemy's turn: advances `activeIndex`, skips anyone `down`, clears `surprised`, ticks the next combatant's effects (rolls ongoing damage, applies it as HP from Phase 3, counts down, expires), increments the round on wrap. Returns what happened and who's next. Refuses on a player's turn: only their End turn button ends it. Refuses if the enemy's own action is still `pending`. | `tick_effects`, the phase procedure |
+| `end_turn {}` | 1 | Ends the active enemy's turn: advances `activeIndex`, skips anyone `down`, clears `surprised`, ticks the next combatant's effects (rolls ongoing damage, applies it as HP from Phase 3, counts down, expires), increments the round on wrap. Returns what happened and who's next. Refuses on a player's turn: only the End turn buttons end it. Refuses if the enemy's own action is still `pending`. | `tick_effects`, the phase procedure |
 | `request_roll { from, roll, dc?, target?, why }` | 1 | Records a roll the DM needs from a player, with its target number if it's against one. The engine compares when the roll arrives. | the end-of-response ledger line, written by hand |
 | `resolve_action { actor, summary, targets?, outcome }` | 1 | Records a free-text action as resolved. | - |
 | `apply_effect { target, name, effect, ongoing?, rounds? }` | 1 | Effects the DM originates (an enemy ability, a shove leaving someone prone). Spell effects are applied by the engine from Phase 2. Works on players too. | today's `apply_effect` |
@@ -187,7 +190,7 @@ A new **uncached** system tier, `## Combat State`, placed after the cached hando
 Mutable data moving out of the cached handoff tier into this uncached one is also a caching win. Today every note or effect change invalidates the handoff cache; after this, the handoff tier changes only when an ad hoc lookup lands.
 
 `combat-dm-core.md` is reworked in Phase 1:
-- **"The Shape of a Fight", "The Player Phase", and "The Enemy Phase" are replaced** by a turn procedure: an opening that ends asking for initiative; then turns in initiative order; the player's turn (resolve what they declare, ask for rolls, never end their turn for them); the enemy run (after an End turn, play each enemy in order and call `end_turn` after each, until the order reaches a player). One movement and one action per turn replaces "per phase".
+- **"The Shape of a Fight", "The Player Phase", and "The Enemy Phase" are replaced** by a turn procedure: an opening that runs into the first turn of the engine's initiative order; then turns in initiative order; the player's turn (resolve what they declare, ask for rolls, never end their turn for them); the enemy run (after an End turn, play each enemy in order and call `end_turn` after each, until the order reaches a player). One movement and one action per turn replaces "per phase".
 - **"Where a response ends"** is kept, rephrased for turns: on a player's turn, end when they owe a roll or a decision; after an enemy run, end on the next player's spotlight with a clear picture of the field. The one-line ledger of owed rolls is replaced by `request_roll`, which the engine renders.
 - A short **Combat State** section: the state tier is authoritative; read it, don't reconstruct from the transcript. An entry marked resolved is done. Engine-computed results (initiative, saves, ticks, comparisons, damage) are narrated, never re-rolled. `position` is visible to the players, so write only what they can see there; plans go in `intent`.
 - **"Enemy status, not hit points"** is replaced in Phase 3 by HP from state, still revealed to players only through description.
@@ -214,7 +217,7 @@ One row, ~52px, across the 700px chat column, **chips in initiative order**, hig
 └────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Left:** the round. While initiative is being rolled: "Rolling initiative", with chips appearing as rolls come in.
+- **Left:** the round.
 - **Active chip:** highlighted, whoever's turn it is.
 - **Party chips:** name and HP bar, colored with the existing wound-state classes, since it's the same data the right panel shows.
 - **Enemy chips:** name and a condition word (unharmed / bruised / injured / critical; from HP in Phase 3). No numbers.
@@ -222,9 +225,9 @@ One row, ~52px, across the 700px chat column, **chips in initiative order**, hig
 - **Position:** hovering an enemy chip shows its `position` as a tooltip ("atop the boulder, loosing arrows"). `intent` never reaches the client.
 - **Down:** dead, fled, or surrendered enemies stay in place, dimmed with the word ("fled"), so the order still reads.
 - **Overflow:** past six chips the strip scrolls horizontally, keeping the active chip in view. A popover isn't needed now that details live in tooltips.
-- **End turn** lives in the composer, where the ready toggle sits outside combat, and only for the active player.
+- **End turn** lives in the composer, where the ready toggle sits outside combat, and only for the active player. For the admin, the same spot shows **End [name]'s Turn** while it's the other player's turn.
 - **Live:** updates arrive on the chapter's SSE channel as a new `combat-state` event after every DM message and state change.
-- **Client payload:** the server sends a player-safe projection of the state: no enemy HP numbers, no `intent`, no stats.
+- **Client payload:** the server sends a player-safe projection of the state to everyone, the admin included: no enemy HP numbers, no `intent`, no stats.
 - The final visual design comes from a mockup in `ui-handoff/`, per `steering/structure.md`.
 
 **Alternatives considered:**
@@ -239,8 +242,8 @@ Each phase ships and is useful on its own.
 1. **State core and initiative.** Includes:
    - The `combats.state` column, the backfill, and `state_before` with rollback.
    - Combatants (enemies move out of `context`), public position and private intent, and the ledger with `request_roll` and `resolve_action`.
-   - Initiative: engine-rolled for enemies, the Initiative roll type in both dice rollers, matching, `turnOrder`, surprise.
-   - Turns: the End turn button and marker message with its automatic DM prompt, `end_turn` for enemy runs, per-turn effect ticks, `apply_effect` on players, `update_enemy`, `add_enemy`.
+   - Initiative: engine-rolled for everyone at fight start, `turnOrder`, ties, surprise, and Cyberpunk's Initiative row under SP.
+   - Turns: the End turn button (and the admin's End [name]'s Turn) and marker message with its automatic DM prompt, `end_turn` for enemy runs, per-turn effect ticks, `apply_effect` on players, `update_enemy`, `add_enemy`.
    - Enemy naming guidance.
    - The Combat State prompt tier and the `combat-dm-core.md` rework to turns.
    - A minimal tracker (round, chips in order, the active one highlighted) so players can see whose turn it is. Full styling waits for Phase 4.
@@ -290,8 +293,9 @@ The one remaining model-dependent step is the enemy run: calling `end_turn` afte
 5. **Tracker placement:** the sticky strip in the chat.
 6. **Effects on players:** engine-tracked, and shown only in the tracker.
 7. **Initiative order, not phases,** from Phase 1.
+8. **Initiative is rolled by the engine for everyone** when the fight starts, from stored bonuses; Cyberpunk gets an Initiative row under SP to store its bonus.
+9. **The admin sees what players see.** No real enemy HP or intent in the tracker; those live only in the DM's prompt.
+10. **The admin can end the other player's turn** with an "End [name]'s Turn" button in the End turn spot, shown only on the other player's turn.
 
 ## Open Questions
-1. **An admin DM view.** Should the admin see real enemy HP and intent in the tracker (a toggle), or is the prompt tier enough?
-2. **Cyberpunk players' initiative bonus.** They type their REF into the roller like any modifier. Should Cyberpunk store it the way Laria stores "Ini", so the roller prefills it?
-3. **A player who never clicks End turn.** The other player can't act until they do. Should the admin (or the other player, after some time) be able to end it for them?
+None at present.
