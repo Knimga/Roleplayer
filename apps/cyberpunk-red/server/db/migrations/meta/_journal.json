@@ -134,6 +134,13 @@
       "when": 1789400000000,
       "tag": "0018_combat_message_edited",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789900000000,
+      "tag": "0019_character_initiative",
+      "breakpoints": true
     }
   ]
 }

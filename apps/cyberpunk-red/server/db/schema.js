@@ -24,6 +24,7 @@ export const conversations = pgTable("conversations", {
   characterDescriptions: jsonb("character_descriptions"), // { "<username>": "<description, <=500 chars>" }, mutable
   characterGear: jsonb("character_gear"), // { "<username>": "<weapons & gear, <=500 chars>" }, mutable
   characterHp: jsonb("character_hp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation
+  characterInitiative: jsonb("character_initiative"), // { "<username>": <int> } - the character's initiative bonus, entered by the player; mutable; seeded 0 at Story creation. Stored for the combat-state feature's turn order (specs/combat-state.md); not in any roster
   characterSp: jsonb("character_sp"), // { "<username>": { "current": <int>, "max": <int> } }, mutable; seeded to 0/0 at Story creation; never sent to the LLM
   characterReady: jsonb("character_ready"), // { "<username>": <bool> }, mutable; seeded false/false at Story/chapter creation (never carried over); reset false/false when the DM replies
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

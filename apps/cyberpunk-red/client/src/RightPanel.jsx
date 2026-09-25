@@ -3,6 +3,7 @@ import DiceRoller from "./DiceRoller";
 import AvatarUpload from "@roleplayer/ui/AvatarUpload.jsx";
 import HpTracker from "./HpTracker";
 import SpTracker from "./SpTracker";
+import InitiativeTracker from "./InitiativeTracker";
 import CharacterTextField from "@roleplayer/ui/CharacterTextField.jsx";
 import Party from "@roleplayer/ui/Party.jsx";
 import MapModal from "./MapModal";
@@ -22,6 +23,8 @@ export default function RightPanel({
   onHpSaved,
   mySp,
   onSpSaved,
+  myInitiative,
+  onInitiativeSaved,
   myDescription,
   onDescriptionSaved,
   myGear,
@@ -50,6 +53,7 @@ export default function RightPanel({
           <AvatarUpload conversationId={conversationId} avatarUrl={myAvatarUrl} onUploaded={onAvatarUploaded} />
           <HpTracker conversationId={conversationId} hp={myHp} onSaved={onHpSaved} />
           <SpTracker conversationId={conversationId} sp={mySp} onSaved={onSpSaved} />
+          <InitiativeTracker conversationId={conversationId} initiative={myInitiative} onSaved={onInitiativeSaved} />
           <hr />
           <div className="character-actions-row">
             <CharacterTextField

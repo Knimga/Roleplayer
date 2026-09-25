@@ -95,6 +95,8 @@ function App() {
         onHpSaved={refreshConversations}
         mySp={selectedConversation?.characterSp?.[session.username]}
         onSpSaved={refreshConversations}
+        myInitiative={selectedConversation?.characterInitiative?.[session.username]}
+        onInitiativeSaved={refreshConversations}
         myDescription={selectedConversation?.characterDescriptions?.[session.username]}
         onDescriptionSaved={refreshConversations}
         myGear={selectedConversation?.characterGear?.[session.username]}

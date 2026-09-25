@@ -1051,7 +1051,8 @@
 }
 
 #hp-tracker,
-#sp-tracker {
+#sp-tracker,
+#initiative-tracker {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1116,6 +1117,11 @@
   color: var(--text-h);
 }
 
+/* A single number under SP: sits tight against the SP row, no bar. */
+#initiative-tracker .hp-numbers {
+  margin-top: 2px;
+}
+
 .wound-state {
   margin: 2px 0 0;
   font-size: 12px;
@@ -1133,7 +1139,8 @@
 }
 
 #hp-tracker [role="alert"],
-#sp-tracker [role="alert"] {
+#sp-tracker [role="alert"],
+#initiative-tracker [role="alert"] {
   color: #ff5470;
   font-size: 12px;
   text-align: center;
