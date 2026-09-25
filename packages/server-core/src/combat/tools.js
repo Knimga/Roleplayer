@@ -167,7 +167,7 @@ export const ENEMY_STATUS_LADDER = ["unharmed", "bruised", "injured", "critical"
 export const UPDATE_ENEMY_STATUS_TOOL = {
   name: "update_enemy_status",
   description:
-    "Your notepad for one enemy - the players never see it. Record its step on the status ladder and a one-line note on where it is and what shape it's in, and it will be in its stat block next message. Call it whenever a hit lands on an enemy, it drops, or it moves somewhere that matters, before you narrate the beat.",
+    "Your notepad for one enemy - the players never see it. Record its step on the status ladder and a one-line note on where it is and what shape it's in, and it will be in its stat block next message. Call it whenever a hit lands on an enemy, it drops, it moves somewhere that matters, or a lasting effect takes hold, ticks, or ends - before you narrate the beat. Each call replaces the whole note, so carry any effect still running (and its rounds left) into the new one.",
   input_schema: {
     type: "object",
     required: ["enemy", "status"],
@@ -176,7 +176,8 @@ export const UPDATE_ENEMY_STATUS_TOOL = {
       status: { type: "string", enum: ENEMY_STATUS_LADDER },
       note: {
         type: "string",
-        description: "One line: position, wounds, what it's doing. e.g. 'behind the dumpster, gun arm hit, reloading'.",
+        description:
+          "One line: position, wounds, what it's doing, and any lasting effect with its rounds left. e.g. 'behind the dumpster, gun arm hit, reloading' or 'by the cart, scorched shoulder, burning 1d6 - 2 rounds left'.",
       },
     },
   },
