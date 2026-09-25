@@ -2025,7 +2025,7 @@
 .right-panel__vitals {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .right-panel__vitals #hp-tracker,
@@ -2055,7 +2055,8 @@
 .bar-row__label {
   flex-shrink: 0;
   font-family: var(--heading);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -2066,7 +2067,7 @@
   position: relative;
   flex: 1;
   min-width: 0;
-  height: 19px;
+  height: 16px;
   border-radius: 3px;
   background: rgba(255, 236, 210, 0.07);
   overflow: hidden;
@@ -2085,7 +2086,8 @@
   align-items: center;
   justify-content: center;
   gap: 1px;
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: var(--text-h);
