@@ -92,7 +92,7 @@ export function createGameMcpServer() {
   // fight. Looks the STAT total up from the same table combat enemies are
   // statted from (server/combat/enemy-stats.js) and rolls the 1d10 in the
   // same call, so there's no number to look up and then invent. Enemies
-  // already in a combat's handoff carry all seven STATs in their block and
+  // already in a combat's handoff carry all eight STATs in their block and
   // should use roll_dice with that value instead.
   server.registerTool(
     "npc_check",

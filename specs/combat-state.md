@@ -187,14 +187,14 @@ Each phase ships and is useful on its own.
 
    *Fixes: effects not recorded on landing.* Laria only; Cyberpunk has no spells.
 3. **Enemy HP.** Includes:
-   - An HP max per tier and archetype (Cyberpunk) or per power level and class (Laria) in each game's stat tables. Values authored by the user; placeholders until then. Laria's stat block already carries `hp` (a flat 20 for every enemy, 2026-09-25).
+   - An HP max per tier and archetype (Cyberpunk) or per power level and class (Laria) in each game's stat tables. Values authored by the user; placeholders until then. Laria's stat block already carries `hp` (a flat 20 for every enemy, 2026-09-25); Cyberpunk's carries a computed one (half of 10 + 5 × the BODY/WILL average).
    - `apply_damage` with save-aware halving.
    - The condition word derived from the HP ratio; the status ladder retires.
 
    Both games.
 4. **Tracker UI.** The sticky strip, the `combat-state` SSE event, and the popover. A minimal version (round, phase, effects) could ship right after Phase 1 if wanted.
 5. **Initiative and turn order.** Includes:
-   - An Initiative option in both dice rollers; enemies' initiative rolled by the engine from their stats (game hook). Laria players' initiative bonus is already stored (`conversations.characterInitiative`, the "Ini" box in the right panel, 2026-09-25), so the engine could also roll it for them. Laria enemies already carry an `initiative` bonus in their stat block (+3/+6/+9/+12 by DEX tier).
+   - An Initiative option in both dice rollers; enemies' initiative rolled by the engine from their stats (game hook). Laria players' initiative bonus is already stored (`conversations.characterInitiative`, the "Ini" box in the right panel, 2026-09-25), so the engine could also roll it for them. Laria enemies already carry an `initiative` bonus in their stat block (+3/+6/+9/+12 by DEX tier); Cyberpunk enemies carry one equal to REF.
    - `turnOrder`, `end_turn`, and per-turn effect ticks.
    - The `combat-dm-core.md` rework.
 6. **Later.** The engine applying enemy damage to player HP. That needs a game hook, since Cyberpunk subtracts SP and ablates armor, and it changes a player-owned value. Also: engine-resolved enemy attacks against player AC or DV; player stat blocks as data; enemy armor (Cyberpunk SP).

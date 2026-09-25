@@ -69,12 +69,12 @@ export const ARCHETYPES = {
 const FALLBACK_ARCHETYPE = "thug";
 
 // Everything an enemy might be asked to roll that isn't an attack or a
-// defense resolves on one of the seven STATs: the combat DM decides which
+// defense resolves on one of the eight STATs: the combat DM decides which
 // STAT the check falls under and rolls that value + 1d10. Cyberpunk has far
 // too many skills to table per archetype, and an NPC will never use most of
-// them, so the block carries seven numbers instead of dozens - precomputed
+// them, so the block carries eight numbers instead of dozens - precomputed
 // here, no lookup tool needed.
-export const STATS = ["INT", "REF", "DEX", "TECH", "COOL", "WILL", "EMP"];
+export const STATS = ["INT", "REF", "DEX", "TECH", "COOL", "WILL", "EMP", "BODY"];
 
 // Which STAT a check falls under - the one judgment the DM makes instead of
 // consulting a skill list. Used verbatim in the npc_check tool's description
@@ -88,6 +88,7 @@ export const STAT_HINTS = {
   INT: "noticing something, recognizing a face, knowing what a device does",
   TECH: "jury-rigging, breaching a lock, disabling a system",
   WILL: "resisting intimidation, fear, or pain; pushing through a wound",
+  BODY: "raw strength, grappling, breaking something, resisting poison, drugs, or disease",
 };
 
 // How the archetypes read, for whoever has to pick one from the fiction -
@@ -106,12 +107,12 @@ export const TIER_STAT_BASE = { 1: 6, 2: 10, 3: 13, 4: 16, 5: 18 };
 // ones around -4/-5 under, so a sniper's REF and its EMP are ten points
 // apart rather than three. Tune freely.
 export const STAT_PROFILES = {
-  brawler: { INT: -4, REF: -1, DEX: 0, TECH: -4, COOL: 2, WILL: 5, EMP: -4 },
-  assassin: { INT: 1, REF: 3, DEX: 5, TECH: -1, COOL: 4, WILL: 0, EMP: -4 },
-  thug: { INT: -3, REF: 1, DEX: 0, TECH: -4, COOL: 3, WILL: 0, EMP: -4 },
-  sniper: { INT: 3, REF: 5, DEX: 0, TECH: 1, COOL: 4, WILL: 0, EMP: -5 },
-  elite: { INT: 3, REF: 4, DEX: 3, TECH: 0, COOL: 4, WILL: 3, EMP: -2 },
-  civilian: { INT: 1, REF: -5, DEX: -3, TECH: -2, COOL: -5, WILL: -5, EMP: 3 },
+  brawler: { INT: -4, REF: -1, DEX: 0, TECH: -4, COOL: 2, WILL: 5, EMP: -4, BODY: 5 },
+  assassin: { INT: 1, REF: 3, DEX: 5, TECH: -1, COOL: 4, WILL: 0, EMP: -4, BODY: 0 },
+  thug: { INT: -3, REF: 1, DEX: 0, TECH: -4, COOL: 3, WILL: 0, EMP: -4, BODY: 2 },
+  sniper: { INT: 3, REF: 5, DEX: 0, TECH: 1, COOL: 4, WILL: 0, EMP: -5, BODY: -1 },
+  elite: { INT: 3, REF: 4, DEX: 3, TECH: 0, COOL: 4, WILL: 3, EMP: -2, BODY: 3 },
+  civilian: { INT: 1, REF: -5, DEX: -3, TECH: -2, COOL: -5, WILL: -5, EMP: 3, BODY: -4 },
 };
 
 // The enemy's total for one STAT (the number it rolls + 1d10 against). Pure
@@ -127,17 +128,29 @@ export function statTotal({ tier, archetype }, stat) {
 // Tolerant of a missing or off-table value (falls back to a mook thug with
 // a knife and a medium pistol) rather than failing the handoff over one bad
 // field.
+// Rulebook HP (10 + 5 x the BODY/WILL average, rounded up), halved because
+// these STATs are stat + skill totals, well above the rulebook's 2-8 stats.
+export function enemyHp(stats) {
+  return Math.ceil((10 + 5 * Math.ceil((stats.BODY + stats.WILL) / 2)) / 2);
+}
+
 export function generateCoreStats(enemy) {
   const tier = TIERS[Number(enemy?.tier)] ? Number(enemy.tier) : 2;
   const meleeWeapon = enemy?.meleeWeapon in MELEE_WEAPONS ? enemy.meleeWeapon : "light melee";
   const rangedWeapon = enemy?.rangedWeapon in RANGED_WEAPONS ? enemy.rangedWeapon : "medium pistol";
   const archetype = ARCHETYPES[enemy?.archetype] ? enemy.archetype : FALLBACK_ARCHETYPE;
   const base = TIERS[tier].combatNumber;
+  const stats = Object.fromEntries(STATS.map((stat) => [stat, statTotal({ tier, archetype }, stat)]));
   return {
     tier: `${tier} (${TIERS[tier].label})`,
     durability: TIERS[tier].durability,
     archetype,
     behavior: ARCHETYPES[archetype].behavior,
+    // Not tracked yet - the status ladder still decides when an enemy drops
+    // (specs/combat-state.md, Phase 3).
+    hp: enemyHp(stats),
+    // Added to 1d10 for turn order; the same number as REF.
+    initiative: stats.REF,
     // What the enemy rolls with (+ 1d10) when it attacks, melee or ranged.
     attack: base + ARCHETYPES[archetype].attack,
     // A fixed number a player's attack roll must beat, melee or ranged.
@@ -153,6 +166,6 @@ export function generateCoreStats(enemy) {
     rangedDamage: RANGED_WEAPONS[rangedWeapon].damage,
     shootDv: RANGED_WEAPONS[rangedWeapon].dv,
     // One number per STAT for every non-attack check - see STATS above.
-    ...Object.fromEntries(STATS.map((stat) => [stat, statTotal({ tier, archetype }, stat)])),
+    ...stats,
   };
 }

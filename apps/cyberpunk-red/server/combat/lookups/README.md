@@ -9,10 +9,10 @@ number, and after the first call it's already in the injected stat block.
 
 Cyberpunk currently needs none. Skill checks were the obvious candidate,
 but the game has far too many skills to table per archetype and an NPC
-never uses most of them, so instead every enemy's block carries all seven
-STAT totals (`INT`/`REF`/`DEX`/`TECH`/`COOL`/`WILL`/`EMP`, from
+never uses most of them, so instead every enemy's block carries all eight
+STAT totals (`INT`/`REF`/`DEX`/`TECH`/`COOL`/`WILL`/`EMP`/`BODY`, from
 `../enemy-stats.js`), precomputed at handoff, and the combat DM decides
-which STAT a check falls under. Seven numbers is cheap to precompute and
+which STAT a check falls under. Eight numbers is cheap to precompute and
 leaves nothing for the DM to forget to look up. The same table backs the
 `npc_check` MCP tool (`mcp/server.js`), which is how either DM rolls for an
 NPC that has no stat block - a one-off guard, a bystander - by naming an

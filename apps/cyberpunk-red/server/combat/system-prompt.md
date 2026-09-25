@@ -13,7 +13,7 @@ Each enemy's block carries an `attack` number (what it rolls with) and a `defens
 - `attack` and `defense` are for attacks only. Every other roll uses a STAT (below), never these.
 
 ## Enemy STATs — every other roll
-Each enemy's block carries seven STAT totals: `INT`, `REF`, `DEX`, `TECH`, `COOL`, `WILL`, `EMP`. For any enemy check that isn't an attack or a defense, don't look for a skill — decide which STAT the action falls under and call `roll_dice` with that STAT's value as the modifier (one d10):
+Each enemy's block carries eight STAT totals: `INT`, `REF`, `DEX`, `TECH`, `COOL`, `WILL`, `EMP`, `BODY`. For any enemy check that isn't an attack or a defense, don't look for a skill — decide which STAT the action falls under and call `roll_dice` with that STAT's value as the modifier (one d10):
 
 - **REF** — shooting-adjacent actions that aren't the attack itself (a snap shot at a fleeing target's cover, driving, drawing under pressure)
 - **DEX** — athletics, climbing, stealth, dodging a hazard, catching a ledge
@@ -22,6 +22,9 @@ Each enemy's block carries seven STAT totals: `INT`, `REF`, `DEX`, `TECH`, `COOL
 - **INT** — noticing something, recognizing a face, knowing what a device does
 - **TECH** — jury-rigging, breaching a lock, disabling a system
 - **WILL** — resisting intimidation, fear, pain, or pushing through a wound
+- **BODY** — raw strength, grappling, breaking something, resisting poison, drugs, or disease
+
+The block also carries `hp` and `initiative`. Both are placeholders for now: don't track or mention HP (the status ladder still decides how hurt an enemy is), and nothing rolls initiative while fights run in Player/Enemy Phases.
 
 For someone who is **not** in the handoff — a bystander caught in the crossfire, a guard who arrives mid-fight — there's no block to read; use `npc_check` with an archetype and tier judged from the fiction, and keep using the same ones for them if they stay in the fight.
 
