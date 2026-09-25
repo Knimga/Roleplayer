@@ -54,3 +54,16 @@ export async function castSpell(conversationId, spellId) {
   if (error) throw new Error(error);
   return res.json();
 }
+
+// Partial body: any of { fortitude, reflex, will }. Resolves to { characterSaves }.
+export async function saveCharacterSaves(conversationId, saves) {
+  const res = await fetch(`${API_BASE}/${conversationId}/saves`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(saves),
+  });
+  const error = await parseErrorOr(res, "Failed to save");
+  if (error) throw new Error(error);
+  return res.json();
+}

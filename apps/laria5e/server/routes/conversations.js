@@ -253,6 +253,7 @@ router.get("/", async (req, res) => {
       characterAc: conversations.characterAc,
       characterMp: conversations.characterMp,
       characterSpells: conversations.characterSpells,
+      characterSaves: conversations.characterSaves,
       characterReady: conversations.characterReady,
       createdAt: conversations.createdAt,
       lastMessageAt: conversations.lastMessageAt,
@@ -337,6 +338,7 @@ router.post("/story", async (req, res) => {
   const characterHp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
   const characterAc = Object.fromEntries(users.map((u) => [u.username, DEFAULT_AC]));
   const characterMp = Object.fromEntries(users.map((u) => [u.username, { current: 0, max: 0 }]));
+  const characterSaves = Object.fromEntries(users.map((u) => [u.username, { fortitude: 0, reflex: 0, will: 0 }]));
   const characterReady = Object.fromEntries(users.map((u) => [u.username, false]));
 
   const [conversation] = await db
@@ -349,6 +351,7 @@ router.post("/story", async (req, res) => {
       characterHp,
       characterAc,
       characterMp,
+      characterSaves,
       characterReady,
       lastMessageAt: new Date(),
     })
@@ -691,6 +694,53 @@ router.patch("/:id/ac", async (req, res) => {
   res.json({ characterAc });
 });
 
+// Fortitude / Reflex / Will bonuses - Laria's three saves. Partial body like
+// HP/MP: any of { fortitude, reflex, will }, merged onto the stored values.
+// The combat DM's roster carries them next to AC, so a change publishes
+// character-updated like AC does.
+const SAVE_KEYS = ["fortitude", "reflex", "will"];
+const MAX_SAVE = 99; // matches the client's 2-digit input
+
+router.patch("/:id/saves", async (req, res) => {
+  const body = req.body ?? {};
+  const given = SAVE_KEYS.filter((k) => body[k] !== undefined);
+  if (given.length === 0) {
+    return res.status(400).json({ error: "fortitude, reflex, and/or will is required" });
+  }
+  for (const k of given) {
+    const v = Number(body[k]);
+    if (!Number.isInteger(v) || v < 0 || v > MAX_SAVE) {
+      return res.status(400).json({ error: `${k[0].toUpperCase()}${k.slice(1)} must be a whole number from 0 to ${MAX_SAVE}` });
+    }
+  }
+
+  const [conversation] = await db
+    .select({
+      characterSaves: conversations.characterSaves,
+      storyId: conversations.storyId,
+      createdAt: conversations.createdAt,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, req.params.id));
+
+  if (!conversation) {
+    return res.status(404).json({ error: "Conversation not found" });
+  }
+  if (!conversation.storyId) {
+    return res.status(400).json({ error: "Saves are only supported for Story conversations" });
+  }
+  if (!(await assertActiveChapter(req.params.id, conversation, res))) return;
+
+  const existing = conversation.characterSaves?.[req.user.username] ?? { fortitude: 0, reflex: 0, will: 0 };
+  const merged = { ...existing, ...Object.fromEntries(given.map((k) => [k, Number(body[k])])) };
+  const characterSaves = { ...(conversation.characterSaves ?? {}), [req.user.username]: merged };
+
+  await db.update(conversations).set({ characterSaves }).where(eq(conversations.id, req.params.id));
+  publish(req.params.id, { type: "character-updated" });
+
+  res.json({ characterSaves });
+});
+
 // MP: same current/max shape and partial-body merge as HP, but player-only
 // bookkeeping - never folded into the roster the DM reads, so no
 // character-updated publish either (nothing model-facing changed).
@@ -895,6 +945,7 @@ router.post("/:id/new-chapter", async (req, res) => {
         characterAc: conversation.characterAc,
         characterMp: conversation.characterMp,
         characterSpells: conversation.characterSpells,
+        characterSaves: conversation.characterSaves,
         // Deliberately not carried over from the outgoing chapter, unlike
         // every other field here — "ready" is a signal about the round in
         // progress, and a new chapter starts a fresh scene with none yet.

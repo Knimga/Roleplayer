@@ -7,7 +7,12 @@ import { useEffect, useState } from "react";
 // numbers (HP's Wound State label) — this component only renders the bar
 // and the numbers themselves. Laria 5e's AC is a single always-editable
 // number rather than a current/max bar, so AcTracker doesn't use this.
-export default function NumberBarTracker({ conversationId, label, value, colorClass, saveFn, onSaved }) {
+//
+// `layout`: "stacked" (default - bar, then the numbers row beneath it) or
+// "inline" (Laria: the label to the left of a taller bar, the numbers
+// overlaid in the middle of it). Only the arrangement differs; editing,
+// validation and saving are the same.
+export default function NumberBarTracker({ conversationId, label, value, colorClass, saveFn, onSaved, layout = "stacked" }) {
   const { current, max } = value ?? { current: 0, max: 0 };
   const [editingField, setEditingField] = useState(null); // null | "current" | "max"
   const [draft, setDraft] = useState("");
@@ -50,12 +55,14 @@ export default function NumberBarTracker({ conversationId, label, value, colorCl
     }
   }
 
+  const inline = layout === "inline";
+
   function renderNumber(field, fieldValue) {
     if (editingField === field) {
       return (
         <input
           type="number"
-          className="hp-number-input"
+          className={inline ? "bar-row__input" : "hp-number-input"}
           autoFocus
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -72,9 +79,33 @@ export default function NumberBarTracker({ conversationId, label, value, colorCl
       );
     }
     return (
-      <button type="button" className={`hp-number ${colorClass}`} onClick={() => startEdit(field)}>
+      <button
+        type="button"
+        className={inline ? "bar-row__num" : `hp-number ${colorClass}`}
+        title={`${field === "current" ? "Current" : "Max"} ${label}`}
+        onClick={() => startEdit(field)}
+      >
         {fieldValue}
       </button>
+    );
+  }
+
+  if (inline) {
+    return (
+      <>
+        <div className="bar-row">
+          <span className="bar-row__label">{label}</span>
+          <div className="bar-row__track">
+            <div className={`bar-row__fill ${colorClass}`} style={{ width: `${fillPct}%` }} />
+            <div className="bar-row__numbers">
+              {renderNumber("current", current)}
+              <span className="bar-row__slash">/</span>
+              {renderNumber("max", max)}
+            </div>
+          </div>
+        </div>
+        {error && <p role="alert">{error}</p>}
+      </>
     );
   }
 

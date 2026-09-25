@@ -14,6 +14,7 @@ export default function MpTracker({ conversationId, mp, onSaved }) {
         colorClass="hp-blue"
         saveFn={saveCharacterMp}
         onSaved={onSaved}
+        layout="inline"
       />
     </section>
   );

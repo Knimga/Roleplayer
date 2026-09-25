@@ -104,6 +104,10 @@ function App() {
         onMpSaved={refreshConversations}
         myAc={selectedConversation?.characterAc?.[session.username]}
         onAcSaved={refreshConversations}
+        mySaves={selectedConversation?.characterSaves?.[session.username]}
+        onSavesSaved={refreshConversations}
+        mySpells={selectedConversation?.characterSpells?.[session.username]}
+        onSpellsSaved={refreshConversations}
         myDescription={selectedConversation?.characterDescriptions?.[session.username]}
         onDescriptionSaved={refreshConversations}
         myGear={selectedConversation?.characterGear?.[session.username]}

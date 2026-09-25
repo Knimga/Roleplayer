@@ -23,6 +23,17 @@ const PORT = process.env.PORT || 3001;
 // handed this app's tables, its combat game module (./combat/), its
 // pre-bound combat DM, its roster builder, and the narrative passes to run
 // once over each fight's outcome.
+// { username: { fortitude, reflex, will } } -> { username: "Fort +5, Reflex +7, Will +3" }
+// for the combat roster. Unset saves are left out rather than shown as +0.
+function formatSaves(characterSaves) {
+  return Object.fromEntries(
+    Object.entries(characterSaves ?? {}).map(([username, s]) => [
+      username,
+      s ? `Fort +${s.fortitude ?? 0}, Reflex +${s.reflex ?? 0}, Will +${s.will ?? 0}` : null,
+    ]),
+  );
+}
+
 const combatsRouter = createCombatsRouter({
   db,
   tables: { combats, combatMessages, conversations, messages, stories },
@@ -39,7 +50,11 @@ const combatsRouter = createCombatsRouter({
       conversation.characterDescriptions,
       conversation.characterGear,
       conversation.characterHp,
-    ) + (conversation.characterNames ? formatFieldBlock("Armor Class", conversation.characterNames, conversation.characterAc) : ""),
+    ) +
+    (conversation.characterNames
+      ? formatFieldBlock("Armor Class", conversation.characterNames, conversation.characterAc) +
+        formatFieldBlock("Saves", conversation.characterNames, formatSaves(conversation.characterSaves))
+      : ""),
   notifyOtherPlayer,
   formatPlayerMessage,
   formatDmReply,

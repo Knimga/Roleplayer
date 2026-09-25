@@ -16,6 +16,7 @@ export default function HpTracker({ conversationId, hp, onSaved }) {
         colorClass={colorClass}
         saveFn={saveCharacterHp}
         onSaved={onSaved}
+        layout="inline"
       />
     </section>
   );

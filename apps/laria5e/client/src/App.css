@@ -1197,47 +1197,51 @@
   margin: 6px 0 0;
 }
 
-#ac-tracker {
+/* AC + Fort / Reflex / Will (DefenseStats.jsx; ui-handoff mockup): four
+   small always-editable squares, AC split off by a divider. */
+.defense-stats__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.stat-box {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 4px;
+  cursor: text;
 }
 
-.ac-field {
-  width: 250px;
+.stat-box__square {
+  width: 46px;
+  height: 46px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
+  justify-content: center;
+  padding: 0 4px;
   border-radius: 3px;
   border: 1px solid var(--border, #38281d);
   background: rgba(255, 236, 210, 0.03);
-  cursor: text;
   transition: border-color 0.15s ease;
 }
 
-.ac-field:hover {
+.stat-box:hover .stat-box__square {
   border-color: rgba(46, 166, 153, 0.45);
 }
 
-.ac-label {
+.stat-box__input {
+  width: 100%;
+  min-width: 0;
   font-family: var(--heading);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.ac-input {
-  width: 56px;
-  font-family: var(--heading);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   text-align: center;
-  padding: 2px 0;
+  padding: 0;
   border: none;
   border-bottom: 1px solid transparent;
   background: transparent;
@@ -1246,11 +1250,29 @@
   transition: border-color 0.15s ease;
 }
 
-.ac-input:focus {
+.stat-box__input:focus {
   border-bottom-color: rgba(46, 166, 153, 0.6);
 }
 
-#ac-tracker [role="alert"] {
+.stat-box__label {
+  font-family: var(--heading);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.defense-stats__divider {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 1px;
+  background: var(--border, #38281d);
+  margin: 0 2px;
+}
+
+#defense-stats [role="alert"] {
   color: var(--danger);
   font-size: 12px;
   text-align: center;
@@ -1277,32 +1299,38 @@
   color: var(--text-dim);
 }
 
-.hp-bar-fill.hp-neutral {
+.hp-bar-fill.hp-neutral,
+.bar-row__fill.hp-neutral {
   background-color: var(--text-dim);
 }
 
 /* MP: a fixed pale blue at every value - no thresholds, unlike HP. */
 .hp-blue {
-  color: #8fb8d6;
+  color: #7ab8de;
 }
 
-.hp-bar-fill.hp-blue {
-  background-color: #8fb8d6;
+.hp-bar-fill.hp-blue,
+.bar-row__fill.hp-blue {
+  background-color: #7ab8de;
 }
 
-.hp-bar-fill.hp-green {
+.hp-bar-fill.hp-green,
+.bar-row__fill.hp-green {
   background-color: #94b552;
 }
 
-.hp-bar-fill.hp-yellow-green {
+.hp-bar-fill.hp-yellow-green,
+.bar-row__fill.hp-yellow-green {
   background-color: var(--gold);
 }
 
-.hp-bar-fill.hp-orange {
+.hp-bar-fill.hp-orange,
+.bar-row__fill.hp-orange {
   background-color: var(--accent);
 }
 
-.hp-bar-fill.hp-red {
+.hp-bar-fill.hp-red,
+.bar-row__fill.hp-red {
   background-color: var(--danger);
 }
 
@@ -1370,8 +1398,12 @@
 }
 
 .action-label {
-  font-size: 11px;
-  opacity: 0.8;
+  font-family: var(--heading);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
   text-align: center;
 }
 
@@ -1458,7 +1490,8 @@
   margin: 0;
 }
 
-#dice-roller strong {
+#dice-roller strong,
+#cast-spell .section-heading {
   display: block;
   margin: 0 0 12px;
   text-align: center;
@@ -1942,4 +1975,725 @@
 #messages li.outcome .bubble {
   border-left: 2px solid var(--accent);
   padding-left: 12px;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Right panel with a character (ui-handoff mockup, 2026-09-25). The panel
+   itself never scrolls: the portrait shrinks first on a short window (down
+   to 200px), then the region below it scrolls inside its own box.
+   ------------------------------------------------------------------------- */
+#right-panel.with-character {
+  overflow: hidden;
+}
+
+.right-panel__identity {
+  flex-shrink: 0;
+}
+
+#right-panel.with-character > hr {
+  flex-shrink: 0;
+}
+
+#right-panel.with-character #avatar-upload {
+  flex: 0 1 300px;
+  min-height: 200px;
+}
+
+#right-panel.with-character .avatar-frame {
+  width: auto;
+  height: 100%;
+  max-height: 300px;
+  aspect-ratio: 5 / 6;
+  flex-shrink: 1;
+}
+
+.right-panel__scroll {
+  flex: 1 1 220px;
+  min-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.right-panel__scroll > * {
+  flex-shrink: 0;
+}
+
+.right-panel__vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.right-panel__vitals #hp-tracker,
+.right-panel__vitals #mp-tracker {
+  display: block;
+  margin: 0;
+}
+
+.character-actions-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.character-actions-row .action-item {
+  width: auto;
+}
+
+/* HP / MP as one row each: label, then a bar with the numbers on it
+   (NumberBarTracker layout="inline"). */
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-row__label {
+  flex-shrink: 0;
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.bar-row__track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 19px;
+  border-radius: 3px;
+  background: rgba(255, 236, 210, 0.07);
+  overflow: hidden;
+}
+
+.bar-row__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.2s ease, background-color 0.15s ease;
+}
+
+.bar-row__numbers {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-h);
+  text-shadow: 0 1px 2px rgba(20, 12, 7, 0.95), 0 0 6px rgba(20, 12, 7, 0.9), 0 0 12px rgba(20, 12, 7, 0.7);
+}
+
+.bar-row__num {
+  font: inherit;
+  color: inherit;
+  text-shadow: inherit;
+  padding: 0 2px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  cursor: text;
+}
+
+.bar-row__num:hover {
+  border-bottom-color: rgba(239, 226, 207, 0.4);
+}
+
+.bar-row__input {
+  width: 34px;
+  font: inherit;
+  color: inherit;
+  text-shadow: inherit;
+  text-align: center;
+  padding: 0 2px;
+  border: none;
+  border-bottom: 1px solid rgba(46, 166, 153, 0.9);
+  background: rgba(20, 12, 7, 0.45);
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.bar-row__input::-webkit-inner-spin-button,
+.bar-row__input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bar-row__slash {
+  opacity: 0.6;
+}
+
+.right-panel__vitals [role="alert"] {
+  color: var(--danger);
+  font-size: 12px;
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Spells: shared pieces (spellDisplay.jsx)
+   ------------------------------------------------------------------------- */
+.spell-badge {
+  flex-shrink: 0;
+  font-family: var(--heading);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 3px 7px;
+  border-radius: 2px;
+  border: 1px solid #4a3627;
+  background: rgba(232, 220, 200, 0.06);
+  color: #a89880;
+}
+
+.spell-badge--buff {
+  color: #4ec6b0;
+  background: rgba(46, 166, 153, 0.13);
+  border-color: rgba(46, 166, 153, 0.45);
+}
+
+.spell-badge--debuff {
+  color: #c48ac0;
+  background: rgba(129, 74, 120, 0.22);
+  border-color: rgba(129, 74, 120, 0.6);
+}
+
+.spell-badge--single-target {
+  color: #c9762f;
+  background: rgba(201, 118, 47, 0.13);
+  border-color: rgba(201, 118, 47, 0.45);
+}
+
+.spell-badge--aoe {
+  color: #e0b652;
+  background: rgba(217, 168, 60, 0.13);
+  border-color: rgba(217, 168, 60, 0.45);
+}
+
+.spell-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.spell-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border, #38281d);
+  background: rgba(255, 236, 210, 0.03);
+  font-size: 11px;
+  color: var(--text-body);
+}
+
+.spell-chip__label {
+  font-family: var(--heading);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+}
+
+/* ---------------------------------------------------------------------------
+   Cast Spell (CastSpell.jsx)
+   ------------------------------------------------------------------------- */
+.cast-spell__pane {
+  position: relative;
+  border-radius: 3px;
+  border: 1px solid var(--border, #38281d);
+  background: rgba(36, 24, 17, 0.55);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.cast-spell__pane.expanded {
+  border-color: rgba(46, 166, 153, 0.35);
+}
+
+.cast-spell__select-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border, #38281d);
+}
+
+.cast-spell__select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--heading);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--text-h);
+  padding: 9px 26px 9px 12px;
+  border: none;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.cast-spell__select:hover {
+  color: var(--accent-2);
+}
+
+.cast-spell__select option {
+  background-color: var(--bg);
+  color: var(--text-h);
+  text-transform: none;
+}
+
+.cast-spell__chevron {
+  position: absolute;
+  right: 11px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.cast-spell__detail {
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.cast-spell__meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cast-spell__mp {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 700;
+  color: #7ab8de;
+}
+
+.cast-spell__desc {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+
+.cast-spell__desc.clamped {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cast-spell__detail .spell-chips {
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.cast-spell__button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  box-sizing: border-box;
+  font-family: var(--heading);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(201, 118, 47, 0.45);
+  background: rgba(201, 118, 47, 0.1);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.cast-spell__button:hover:not(:disabled) {
+  background: rgba(201, 118, 47, 0.22);
+}
+
+.cast-spell__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.cast-spell__empty {
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+#cast-spell [role="alert"] {
+  color: var(--danger);
+  font-size: 12px;
+  text-align: center;
+  margin: 6px 0 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Spellbook modal (SpellbookModal.jsx) - rides on .modal-overlay /
+   .modal-panel for the shared fade in and out.
+   ------------------------------------------------------------------------- */
+.modal-panel.spellbook-panel {
+  width: 780px;
+  max-width: calc(100vw - 56px);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong, #4a3627);
+  background:
+    linear-gradient(180deg, rgba(46, 166, 153, 0.09) 0, rgba(46, 166, 153, 0.03) 70px, rgba(46, 166, 153, 0) 240px),
+    linear-gradient(0deg, rgba(129, 74, 120, 0.07) 0, rgba(129, 74, 120, 0) 200px),
+    var(--bg);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.65);
+}
+
+.spellbook-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border, #38281d);
+}
+
+.spellbook-header__icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.spellbook-header__titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.spellbook-header__title {
+  display: block;
+  font-family: var(--heading);
+  font-size: 19px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-h);
+  text-shadow: 0 0 12px rgba(46, 166, 153, 0.35);
+}
+
+.spellbook-header__subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.spellbook-close {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+  font-size: 17px;
+  line-height: 1;
+  border-radius: 3px;
+  border: 1px solid var(--border, #38281d);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.spellbook-close:hover {
+  color: var(--text-h);
+  border-color: var(--border-strong, #4a3627);
+}
+
+.spellbook-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spellbook-empty {
+  margin: 12px 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.spell-pane {
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 3px;
+  border: 1px solid var(--border, #38281d);
+  background: rgba(36, 24, 17, 0.55);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.spell-pane.editing {
+  border-color: rgba(46, 166, 153, 0.4);
+  background: rgba(46, 166, 153, 0.05);
+  box-shadow: 0 0 22px rgba(46, 166, 153, 0.08);
+}
+
+.spell-pane__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spell-pane__name {
+  font-family: var(--heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.spell-pane__mp {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--heading);
+  font-size: 12px;
+  font-weight: 700;
+  color: #7ab8de;
+}
+
+.spell-pane__desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+
+.spell-pane .spell-chips {
+  padding-right: 66px;
+}
+
+.spell-pane__actions {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.spell-pane:hover .spell-pane__actions,
+.spell-pane:focus-within .spell-pane__actions,
+.spell-pane__actions.confirming {
+  opacity: 1;
+}
+
+.spell-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 2px;
+  border: 1px solid var(--border, #38281d);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.spell-icon:hover {
+  color: #e0913f;
+  border-color: rgba(201, 118, 47, 0.55);
+}
+
+.spell-icon.danger:hover {
+  color: var(--accent-red);
+  border-color: rgba(176, 86, 72, 0.5);
+}
+
+.spell-delete-confirm {
+  font-family: var(--heading);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 5px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  border: 1px solid rgba(198, 76, 60, 0.85);
+  background: rgba(176, 86, 72, 0.3);
+  color: #f0a99c;
+  box-shadow: 0 0 12px rgba(176, 86, 72, 0.3);
+}
+
+.spell-pane [role="alert"] {
+  color: var(--danger);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+.spell-form {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.spell-field {
+  display: block;
+  font-family: var(--heading);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.spell-field.span-2 { grid-column: span 2; }
+.spell-field.span-3 { grid-column: span 3; }
+.spell-field.span-4 { grid-column: span 4; }
+.spell-field.span-6 { grid-column: span 6; }
+
+.spell-field input,
+.spell-field select,
+.spell-field textarea {
+  display: block;
+  width: 100%;
+  font-family: var(--body-font);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 7px 9px;
+  margin-top: 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border, #38281d);
+  background: var(--bg);
+  color: var(--text-h);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.spell-field textarea {
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 58px;
+}
+
+.spell-field input:focus,
+.spell-field select:focus,
+.spell-field textarea:focus {
+  border-color: rgba(46, 166, 153, 0.55);
+}
+
+.spell-field.invalid input,
+.spell-field.invalid select,
+.spell-field.invalid textarea {
+  border-color: rgba(176, 86, 72, 0.75);
+}
+
+.spell-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.spell-save,
+.spell-cancel {
+  font-family: var(--heading);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 7px 16px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.spell-save {
+  border: 1px solid rgba(46, 166, 153, 0.55);
+  background: rgba(46, 166, 153, 0.14);
+  color: var(--accent-2);
+}
+
+.spell-save:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.spell-cancel {
+  border: 1px solid var(--border, #38281d);
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.spellbook-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border, #38281d);
+}
+
+.spellbook-footer__hint {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+.spellbook-new {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 9px 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(201, 118, 47, 0.45);
+  background: rgba(201, 118, 47, 0.1);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.spellbook-new:hover:not(:disabled) {
+  background: rgba(201, 118, 47, 0.18);
+}
+
+.spellbook-new:disabled {
+  cursor: default;
+  opacity: 0.45;
 }

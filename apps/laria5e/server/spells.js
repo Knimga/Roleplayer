@@ -29,11 +29,8 @@ const oneOf = (label, options) => (v) => (options.includes(v) ? null : `${label}
 const dice = (label) => (v) =>
   typeof v === "string" && DICE_PATTERN.test(v.trim()) ? null : `${label} must be dice like "2d6", "1d10+3" or "6d6 fire"`;
 
-function validateSpell(spell, index) {
-  const where = `Spell ${index + 1}`;
-  if (!spell || typeof spell !== "object" || Array.isArray(spell)) return { error: `${where} must be an object` };
-
-  const checks = [
+function spellChecks(spell) {
+  return [
     ["id", true, text("id", 1, 64)],
     ["name", true, text("Name", 1, 40)],
     ["type", true, oneOf("Type", SPELL_TYPES)],
@@ -49,12 +46,39 @@ function validateSpell(spell, index) {
     ["duration", false, text("Duration", 0, 40)],
     ["mpCost", true, (v) => (Number.isInteger(v) && v >= 0 && v <= 999 ? null : "MP cost must be a whole number of 0 or more")],
   ];
+}
+
+const isAbsent = (raw) => raw === undefined || raw === null || (typeof raw === "string" && raw.trim() === "");
+
+// Every problem with one spell, keyed by field - { name: "Name is required",
+// dc: "DC must be ..." } - or {} when it's valid. The spell editor
+// (client/src/SpellbookModal.jsx) imports this to mark fields as the player
+// types, so the form and the server can't disagree about what's valid.
+export function spellFieldErrors(spell) {
+  const errors = {};
+  for (const [key, required, check] of spellChecks(spell)) {
+    const raw = spell[key];
+    if (isAbsent(raw)) {
+      if (required) errors[key] = `${key} is required`;
+      continue;
+    }
+    const error = check(raw);
+    if (error) errors[key] = error;
+  }
+  if (!isAbsent(spell.damageOverTime) && isAbsent(spell.duration)) {
+    errors.duration = "damage over time needs a duration";
+  }
+  return errors;
+}
+
+function validateSpell(spell, index) {
+  const where = `Spell ${index + 1}`;
+  if (!spell || typeof spell !== "object" || Array.isArray(spell)) return { error: `${where} must be an object` };
 
   const clean = {};
-  for (const [key, required, check] of checks) {
+  for (const [key, required, check] of spellChecks(spell)) {
     const raw = spell[key];
-    const absent = raw === undefined || raw === null || (typeof raw === "string" && raw.trim() === "");
-    if (absent) {
+    if (isAbsent(raw)) {
       if (required) return { error: `${where} (${spell.name || "unnamed"}): ${key} is required` };
       continue;
     }
