@@ -2052,8 +2052,11 @@
   gap: 8px;
 }
 
+/* Fixed width, not sized to the text: in Cinzel "MP" is wider than "HP",
+   which would start the two bars a pixel or two apart. */
 .bar-row__label {
   flex-shrink: 0;
+  width: 2em;
   font-family: var(--heading);
   font-size: 12px;
   line-height: 1;
