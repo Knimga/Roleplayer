@@ -81,7 +81,7 @@ Enemies move out of `context.enemies[].condition` / `.effects` into `state.comba
 
 **Position is public, intent is private.** `position` is written for the players: only what their characters can see, and it appears as the tooltip on the enemy's chip. `intent` is the DM's own notepad (a plan, a breaking point, a bluff) and never leaves the prompt. Splitting them lets the tracker show position without leaking hidden information, and keeps the "reveal only what the fiction earns" rule enforceable: anything in `position` is fair game for the table by definition.
 
-**Backfill:** when a combat is loaded with `state` null (any fight active at deploy time), the engine builds `state` from `context`: round 1, combatants from the players and `context.enemies` carrying any existing `condition` / `effects` across, today's `update_enemy_status` note as `intent` (it was private), everyone's initiative rolled, and the turn given to whichever player spoke last, with the order continuing from them. No data migration beyond the column.
+**Backfill:** `state` lives in Postgres, so a server restart (Render's free tier spins the app down when idle and back up on the next request, often several times in one fight) never touches it: the fight resumes exactly where it was, turn order included. The backfill is only for a fight that started *before this feature shipped* and so has `state` null. It runs once, the first time such a fight is loaded, and writes `state`, so it never runs again for that fight. It builds `state` from `context`: round 1, combatants from the players and `context.enemies` carrying any existing `condition` / `effects` across, today's `update_enemy_status` note as `intent` (it was private), everyone's initiative rolled (those fights ran in phases, so there's no earlier order to lose), and the turn given to whichever player spoke last, with the order continuing from them. No data migration beyond the column.
 
 ### `combat_messages.state_before` (new jsonb column)
 The state as it was immediately before a DM message was generated, stored on that assistant row. See Rollback.
@@ -101,9 +101,9 @@ This matches what `combat-dm-core.md` already asks of the narration ("the one wi
 
 ## Initiative and turns
 
-**Rolling.** When the fight starts (the handoff is accepted), the engine rolls everyone's initiative in one go and sorts `turnOrder`, so the order is known before the DM writes a word. Enemies roll on their stat block's `initiative` bonus; players on their stored bonus: Laria's "Ini" box (`characterInitiative`, already built) and Cyberpunk's new Initiative row (below). Laria rolls `1d20 + bonus`, Cyberpunk `1d10 + bonus` through its dice rules (exploding 10s, fumbling 1s). The rolls are shown in the tracker and rendered in the prompt; the DM's opening narration sets the scene and runs straight into the first turn: if an enemy is first, it plays the enemies up to the first player; if a player is first, it ends on their spotlight. Players don't roll initiative themselves, which makes this the one roll the engine makes for them: it's bookkeeping with no decision in it, and it keeps the opening to one DM response.
+**Rolling.** When the fight starts (the handoff is accepted), the engine rolls everyone's initiative in one go and sorts `turnOrder`, so the order is known before the DM writes a word. Enemies roll on their stat block's `initiative` bonus; players on their stored bonus: Laria's "Ini" box (`characterInitiative`, already built) and Cyberpunk's Initiative row (below, already built). Laria rolls `1d20 + bonus`, Cyberpunk `1d10 + bonus` through its dice rules (exploding 10s, fumbling 1s). The rolls are shown in the tracker and rendered in the prompt; the DM's opening narration sets the scene and runs straight into the first turn: if an enemy is first, it plays the enemies up to the first player; if a player is first, it ends on their spotlight. Players don't roll initiative themselves, which makes this the one roll the engine makes for them: it's bookkeeping with no decision in it, and it keeps the opening to one DM response.
 
-**Cyberpunk's Initiative row.** A small, minimal row under SP in Cyberpunk's right panel for entering and saving the character's initiative bonus: a `characterInitiative` column on Cyberpunk's `conversations` (`{ "<username>": int }`, seeded 0, carried into new chapters) and a `PATCH /:id/initiative` route, mirroring Laria's. Players enter their own number (REF plus anything that adds to it); the app doesn't compute it.
+**Cyberpunk's Initiative row** (built 2026-09-25). A small row under SP in Cyberpunk's right panel, styled like the HP/SP numbers (`InitiativeTracker.jsx`): the label and one click-to-edit number, shown as `+N`. Stored as `characterInitiative` on Cyberpunk's `conversations` (`{ "<username>": int }`, 0-99, seeded 0, carried into new chapters, migration 0019) through `PATCH /:id/initiative`, mirroring Laria's. Players enter their own number (REF plus anything that adds to it); the app doesn't compute it. Not in any roster.
 
 **Ties:** player before enemy; between two players or two enemies, the higher bonus, then a coin flip the engine makes once and stores.
 
@@ -113,7 +113,7 @@ This matches what `combat-dm-core.md` already asks of the narration ("the one wi
 
 **A player's turn.** The tracker highlights them and their composer shows **End turn**. They declare an action, the DM resolves it and asks for rolls, they roll, the DM narrates, and so on, prompting the DM with "Ask DM" as today. When they're done, including any banter after their actions are spent, they click **End turn**. That posts a user-role marker message in the fight's transcript, `— BARRET ENDS TURN —` (sender: the character), and prompts the DM automatically. Only the active player sees the button. The ready toggle is hidden during combat, since turns replace it.
 
-**The admin can end the other player's turn** (someone stepped away, or forgot to click). While it's the other player's turn, the admin sees **End [name]'s Turn** in the same place their own End turn button appears. It posts the same marker, `— BARRET ENDS TURN —`, under the admin's account and prompts the DM. The admin's own End turn works as for any player. Ending a turn isn't admin-only for the active player; ending someone else's is.
+**The admin can end the other player's turn** (someone stepped away, or forgot to click). While it's the other player's turn, the admin sees **End [name]'s Turn** in the same place their own End turn button appears. It posts the same marker, `— BARRET ENDS TURN —`, **as that player**: the row's `sender` is their character name and `authorUsername` their username, so the transcript and the DM read it exactly as if they'd clicked it themselves. The one difference is the Discord ping, which goes to that player (the admin is the actor), so they know their turn was ended for them. Then it prompts the DM. The admin's own End turn works as for any player. Ending a turn isn't admin-only for the active player; ending someone else's is.
 
 **The other player, off-turn,** can still post: banter, questions, OOC. A declared action is held for their turn, exactly as today's out-of-phase rule.
 
@@ -242,7 +242,7 @@ Each phase ships and is useful on its own.
 1. **State core and initiative.** Includes:
    - The `combats.state` column, the backfill, and `state_before` with rollback.
    - Combatants (enemies move out of `context`), public position and private intent, and the ledger with `request_roll` and `resolve_action`.
-   - Initiative: engine-rolled for everyone at fight start, `turnOrder`, ties, surprise, and Cyberpunk's Initiative row under SP.
+   - Initiative: engine-rolled for everyone at fight start, `turnOrder`, ties, and surprise. (Cyberpunk's Initiative row under SP is already built.)
    - Turns: the End turn button (and the admin's End [name]'s Turn) and marker message with its automatic DM prompt, `end_turn` for enemy runs, per-turn effect ticks, `apply_effect` on players, `update_enemy`, `add_enemy`.
    - Enemy naming guidance.
    - The Combat State prompt tier and the `combat-dm-core.md` rework to turns.
@@ -293,9 +293,9 @@ The one remaining model-dependent step is the enemy run: calling `end_turn` afte
 5. **Tracker placement:** the sticky strip in the chat.
 6. **Effects on players:** engine-tracked, and shown only in the tracker.
 7. **Initiative order, not phases,** from Phase 1.
-8. **Initiative is rolled by the engine for everyone** when the fight starts, from stored bonuses; Cyberpunk gets an Initiative row under SP to store its bonus.
+8. **Initiative is rolled by the engine for everyone** when the fight starts, from stored bonuses; Cyberpunk gets an Initiative row under SP to store its bonus (built).
 9. **The admin sees what players see.** No real enemy HP or intent in the tracker; those live only in the DM's prompt.
-10. **The admin can end the other player's turn** with an "End [name]'s Turn" button in the End turn spot, shown only on the other player's turn.
+10. **The admin can end the other player's turn** with an "End [name]'s Turn" button in the End turn spot, shown only on the other player's turn. The marker it posts is attributed to that player.
 
 ## Open Questions
 None at present.
