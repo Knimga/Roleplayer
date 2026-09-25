@@ -27,6 +27,12 @@ You are the owner of grouping code changes logically into Git commits - your use
 
 This repo is pointed to a public repo on GitHub, and commits to that repo automatically trigger production redeploys. Therefore, never do a Git push unless your user specifically requests it.
 
+## Testing Against Real Models
+
+Every call to a Claude model costs real money. Never run a test that calls a real model without asking the user first — say what the test will call, how many times, and on which model, and wait for a yes. That includes "just one quick call" and re-runs of a test that was already approved.
+
+When a live test is approved, be lean: use exactly what a good-quality test needs and nothing more — the fewest calls and turns that genuinely answer the question, the cheapest model that exercises the code path under test, small `max_tokens`, minimal fixtures, no exploratory or duplicate runs. Repeat a run for variance only when the question is about consistency, and say so when asking. Everything that doesn't need a model — validation, routes, message formats, DB behavior — is tested without one (in-process Express + the dev DB, or a stubbed client).
+
 ## Hosting
 
 - Render — both Cyberpunk Red and Laria 5e are deployed, each as its own single Web Service — Express serves both the API and the built React frontend (`client/dist`) from the same origin, avoiding CORS/cross-site-cookie complexity entirely. See `specs/render-hosting.md`. Build command (`npm ci --include=dev && npm run build --workspace=apps/<app>/client`) needs `--include=dev` explicitly — Render sets `NODE_ENV=production` for the build step, which makes plain `npm ci` skip `devDependencies` (where `vite` lives), so a bare `npm ci` fails the build with `vite: not found`.
