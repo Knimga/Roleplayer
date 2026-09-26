@@ -30,6 +30,7 @@ Initiative order replaces phases because phases leave "when is a player done?" t
 3. **Every state change is reversible with the message that caused it.** Admin delete-to-retry must keep working, so a DM message's state changes roll back with it.
 4. **No new judgment from the engine.** It never decides whether an enemy is in range, who an area spell catches, how hard a check is, or whether a desperate move works. Those stay the DM's calls, passed to the engine as arguments.
 5. **Players own their characters' numbers.** Players keep applying damage to their own HP; the engine reads player HP and never writes it.
+6. **State changes only inside a DM reply, and commits with it.** See When state changes. Player actions (a roll, a cast, End turn) are recorded on their messages and folded into state when the next reply starts, so a failed reply or a restart can never leave the fight half-changed.
 
 ## Data model
 
@@ -86,7 +87,36 @@ Enemies move out of `context.enemies[].condition` / `.effects` into `state.comba
 ### `combat_messages.state_before` (new jsonb column)
 The state as it was immediately before a DM message was generated, stored on that assistant row. See Rollback.
 
-Migrations: one per app (`combats.state`, `combat_messages.state_before`), both nullable. Both apps, since both host the engine's tables.
+### `combat_messages.data` (new jsonb column)
+What a player message *is*, mechanically, saved by the route that creates it so the engine never parses message text. Null for ordinary messages.
+
+```
+{ roll: Roll }                 // /roll: the result as data (below)
+{ cast: { spellId, spell } }   // /cast (Phase 2): the spell as it was when cast
+{ endTurn: { combatantId } }   // the End turn marker, including the admin's End [name]'s Turn
+```
+
+**Rolls.** Each game's `buildRollMessage` returns `{ content, roll }` instead of `{ content }`: the same result it already formats, as data. The combat `/roll` route saves `roll` on the row; the narrative `/roll` route ignores it (chapter rolls have nothing to match against).
+
+```
+// Laria
+{ kind: "attack", total: 17, natural: 14, modifier: 3, advantage: "adv", crit: false, fumble: false, target?: "Red-Scarf" }
+{ kind: "save", save: "will", total: 12, natural: 9, modifier: 3, advantage: "flat", crit: false, fumble: false }
+{ kind: "skill", skill: "Stealth", total: 15, ... }
+{ kind: "damage", total: 9, dice: "1d8+3", crit: true }
+{ kind: "misc", label: "Luck", total: 4, dice: "1d6" }
+// Cyberpunk
+{ kind: "attack", range: "melee" | "ranged", total: 24, crit: "success" | "failure" | null, target?: "Red-Scarf" }
+{ kind: "evasion", total: 13, crit: null }
+{ kind: "check", opposed: false, total: 16, crit: null }
+{ kind: "damage", total: 11, dice: 3 }
+```
+
+`target` arrives with the Phase 3 target picker.
+
+**Messages with data can be deleted but not edited** (the edit route refuses them). Editing the text of a roll wouldn't change the saved result, so the two could disagree. Deleting and re-rolling stays available until the DM replies, as today.
+
+Migrations: one per app (`combats.state`, `combat_messages.state_before`, `combat_messages.data`), all nullable. Both apps, since both host the engine's tables.
 
 ## Enemy names
 
@@ -148,16 +178,39 @@ Every comparison uses the game's beat-the-number rule (a tie fails). The DM alwa
 A list of what's been declared this round, and whether it's resolved.
 
 **How entries are created:**
-- **Casts, exactly and for free.** `POST /cast` during a fight creates a `pending` entry with the full spell copied in and `messageId` set (Phase 2). The route knows everything at intake.
+- **Casts, exactly and for free.** `POST /cast` during a fight saves the full spell on its message (`data.cast`); the next DM reply turns it into a `pending` entry with `messageId` set (Phase 2). The route knows everything at intake, and nothing is lost by waiting.
 - **Roll requests, by the DM.** `request_roll` creates an entry `awaiting` a specific roll from a specific player, with its target number when there is one.
 - **Free-text actions at resolution, not intake.** "I shove the archer off the cart" is only an action once the DM interprets it, so the DM records it when it settles it: `resolve_action` creates the entry already `resolved`. The ledger's job is marking what's done, and that happens at resolution. A structured action composer in the UI (the player picks Attack / Cast / Move / Other and a target) is the upgrade path if free text proves the weak link; it is not in this spec.
-- **Roll messages are matched, not interpreted.** When a player posts a roll whose type matches something the ledger is `awaiting` from them, the engine attaches it to that entry, and compares it if the entry carries a target number. Rolls with no match are left for the DM to read as today.
+- **Roll messages are matched, not interpreted.** At the start of each DM reply, the engine takes every roll posted since the last reply (`data.roll`, never the text) and looks for an entry `awaiting` that roll from that player:
+  - The kind must match (an attack roll for an awaited attack). For checks and saves the skill or save must match too: a Will save satisfies only an awaited Will save.
+  - **Exactly one match:** the engine attaches the roll and, if the entry carries a target number, compares it.
+  - **No match, or more than one:** it does nothing, and the DM reads the roll as it does today. A wrong match is worse than none.
 
 **What it prevents:** the ledger is rendered into the prompt every turn, so the DM sees "Kael: Immolate on the Scarred Captain, resolved (save failed 9 vs 13; burning 3 rounds); awaiting Kael's damage roll" rather than inferring it from prose. Resolving an entry twice is a tool error that names the existing outcome, so a double roll can't happen even if the model tries.
 
 **What it enables:**
 - The end-of-response list of outstanding rolls comes from `awaiting`, so the DM doesn't have to remember it.
 - `end_combat`'s `enemyStatus` can be prefilled from state.
+
+## When state changes
+
+Every change to `combats.state` happens inside a DM reply and is written **in one transaction with that reply's message**. The reply runs like this:
+
+1. Load `state` and keep a copy as `state_before`.
+2. Fold in what players did since the last reply, in message order: an End turn marker advances the turn (ticking the next combatant's effects), casts become ledger entries, and rolls are matched and compared.
+3. Call the model. Its tools (`end_turn`, `apply_effect`, `resolve_cast`, ...) change the in-memory copy only.
+4. Commit: insert the DM message with `state_before` and write `state`, in one transaction. Then publish the `combat-state` event.
+
+If anything fails before step 4 (the API errors, the reply is abandoned, or Render spins the server down mid-reply), nothing is written: the fight is exactly as it was, and the player asks the DM again. Step 2 runs again on the retry and gets the same result, because it reads the same messages. There is no half-advanced turn, no effect ticked without narration, no roll matched to a reply that never arrived.
+
+What this costs: the tracker shows a roll's or an End turn's effect only once the DM replies. That's when the outcome is narrated anyway. The one exception is the fight's start: the combat row, its `state`, and everyone's initiative are written together when the handoff is accepted.
+
+What it simplifies: deleting a player message before the DM replies never has to undo anything, because nothing has touched state yet (see Rollback).
+
+### The enemy-run guard
+The one step that depends on the model is the enemy run: calling `end_turn` after each enemy and stopping at a player. The engine checks the result before committing. If the reply ends while it's still an enemy's turn, and no player owes a roll (nothing new is `awaiting` from a player), the engine gives the model one more turn with a short nudge ("It's still Red-Scarf's turn. Continue the enemy turns until a player's turn comes up.") and keeps going from where it stopped. This is the same retry-once pattern the combat handoff uses. If the second attempt also stops early, the reply is committed as it is, and the next reply picks up on that enemy's turn, visible in the state tier.
+
+**Limits.** A run with four enemies is roughly four actions, four attack rolls, some damage rolls, and four `end_turn` calls, all in one reply. Phase 1 checks the generator's `max_tokens` and tool-round cap against a four-enemy run (the verification fixture below) and raises them if needed, so a long run ends because the order reached a player, not because a limit cut it off.
 
 ## Tools
 
@@ -201,9 +254,8 @@ Both games' combat prompts drop their "Laria uses the Player Phase / Enemy Phase
 
 Deleting a message must undo what it did to state:
 - **Deleting the latest DM message** restores `combats.state` from that message's `state_before`. Every change made during that message is undone together, whether HP, effects, the ledger, the round, or the turn. An End turn's advance is applied inside the DM generation it triggers, after `state_before` is captured, so deleting that DM reply puts the turn back with the player; the marker message can then be deleted like any unanswered player message.
-- **Deleting a player's `CAST:` message** (allowed until the DM replies, as for any player message) removes its `pending` ledger entry. Players fix their own MP. Found via the entry's `messageId`.
-- **Deleting a player's roll message** detaches it from any `awaiting` entry it satisfied, and undoes the comparison it triggered, so the entry goes back to awaiting.
-- **Edits** to message text never touch state.
+- **Deleting a player message before the DM replies** (a roll, a `CAST:`, an End turn marker, or anything else) needs no undo: player messages only reach state when the next reply starts (see When state changes). Players fix their own MP after deleting a cast.
+- **Edits** to message text never touch state, and messages carrying `data` (rolls, casts, End turn markers) can't be edited.
 
 ## UI: the combat tracker
 
@@ -241,6 +293,8 @@ Each phase ships and is useful on its own.
 
 1. **State core and initiative.** Includes:
    - The `combats.state` column, the backfill, and `state_before` with rollback.
+   - The reply pipeline in When state changes: one transaction per reply, player messages folded in at the start, and the enemy-run guard.
+   - `combat_messages.data`: `buildRollMessage` returning `roll` in both games, the combat `/roll` route saving it, End turn markers, and the edit route refusing messages with data.
    - Combatants (enemies move out of `context`), public position and private intent, and the ledger with `request_roll` and `resolve_action`.
    - Initiative: engine-rolled for everyone at fight start, `turnOrder`, ties, and surprise. (Cyberpunk's Initiative row under SP is already built.)
    - Turns: the End turn button (and the admin's End [name]'s Turn) and marker message with its automatic DM prompt, `end_turn` for enemy runs, per-turn effect ticks, `apply_effect` on players, `update_enemy`, `add_enemy`.
@@ -254,7 +308,7 @@ Each phase ships and is useful on its own.
 
    Both games.
 2. **Engine-resolved spells.** Includes:
-   - `/cast` creating ledger entries, and `resolve_cast`.
+   - `/cast` saving the spell on its message (`data.cast`) and the reply turning it into a ledger entry, and `resolve_cast`.
    - Roll matching for spell attacks and damage, and the attack-spell comparison.
    - The `rollSave` game hook.
 
@@ -271,7 +325,7 @@ Each phase ships and is useful on its own.
 
 ## Verification
 
-No model calls are needed for most of each phase: engine functions over fixture states (initiative sorting and ties, turn advance skipping the down and the surprised, per-turn ticks, round wrap, roll matching and comparison), routes through in-process Express against the dev DB, and the generator with a stubbed client (as in the effects tests). All of these run freely.
+No model calls are needed for most of each phase: engine functions over fixture states (initiative sorting and ties, turn advance skipping the down and the surprised, per-turn ticks, round wrap, roll matching with one, none, and two candidate entries, comparison), the reply pipeline with a stubbed client that throws mid-reply (nothing written) and one that stops an enemy run early (the guard's nudge fires once), a four-enemy run against the generator's limits, routes through in-process Express against the dev DB, and the generator with a stubbed client (as in the effects tests). All of these run freely.
 
 Live-model runs follow `steering/tech.md`: ask first with the call count and model, keep them lean, and repeat only when measuring consistency. The success criteria are the rows in Why, measured on the same two-turn Immolate scenario used for the baseline, plus the new turn procedure:
 
@@ -283,7 +337,7 @@ Live-model runs follow `steering/tech.md`: ask first with the call count and mod
 | Countdown correct | 3/5 / 2/3 | deterministic |
 | Enemy run stops at the next player's turn, having called `end_turn` for each enemy | - | 3/3 |
 
-The one remaining model-dependent step is the enemy run: calling `end_turn` after each enemy and stopping at the player. The live test measures that directly.
+The one remaining model-dependent step is the enemy run: calling `end_turn` after each enemy and stopping at the player. The live test measures it directly, and records how often the guard's nudge was needed.
 
 ## Decisions (2026-09-25)
 1. **Players see about enemies:** name, a condition word (never a number), each active effect as a small generic icon with a tooltip, and position on hover. They never see HP numbers, stats, or intent.
