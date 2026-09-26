@@ -69,7 +69,7 @@ Each app keeps its own distinct visual identity — this is deliberate, not an i
 
 - Left vertical panel: conversation list and conversation management
 - Central area: selected conversation and messages; main interaction
-- Right vertical panel: user in-game tools and character-specific displays; column of components separated by h-rules. Some info here is passed to the LLM as part of player prompts.
+- Right vertical panel: user in-game tools and character-specific displays; column of components separated by h-rules. Some info here is passed to the LLM as part of player prompts. UI design here should always prevent the need to scroll in this side-panel; all tooling should be accessible and/or visible.
 
 ## Character Tools (right panel)
 
