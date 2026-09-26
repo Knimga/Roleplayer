@@ -124,16 +124,16 @@ export function statTotal({ tier, archetype }, stat) {
   return TIER_STAT_BASE[t] + (profile[stat] ?? 0);
 }
 
-// Takes the whole enemy object from the handoff and returns its stat block.
-// Tolerant of a missing or off-table value (falls back to a mook thug with
-// a knife and a medium pistol) rather than failing the handoff over one bad
-// field.
 // Rulebook HP (10 + 5 x the BODY/WILL average, rounded up), halved because
 // these STATs are stat + skill totals, well above the rulebook's 2-8 stats.
 export function enemyHp(stats) {
   return Math.ceil((10 + 5 * Math.ceil((stats.BODY + stats.WILL) / 2)) / 2);
 }
 
+// Takes the whole enemy object from the handoff and returns its stat block.
+// Tolerant of a missing or off-table value (falls back to a mook thug with
+// a knife and a medium pistol) rather than failing the handoff over one bad
+// field.
 export function generateCoreStats(enemy) {
   const tier = TIERS[Number(enemy?.tier)] ? Number(enemy.tier) : 2;
   const meleeWeapon = enemy?.meleeWeapon in MELEE_WEAPONS ? enemy.meleeWeapon : "light melee";
