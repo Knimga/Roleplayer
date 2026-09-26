@@ -15,6 +15,8 @@ dist-ssr/
 
 **/ui-handoff/
 **/backups/
+# Local-only helper scripts (prod migrations) and the prod DB URLs they read
+local-scripts/
 
 # Logs
 logs
